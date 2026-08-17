@@ -231,7 +231,7 @@
           <label>Valor</label>
           <div class="valor-row">
             <span>R$</span>
-            <input type="number" id="fValor" placeholder="0,00" inputmode="decimal" step="0.01">
+            <input type="text" id="fValor" placeholder="0,00" inputmode="decimal" autocomplete="off">
           </div>
 
           <label>Categoria</label>
@@ -380,11 +380,29 @@ const BUDGET_FIXOS = 1375.00;
 let selectedCat = 'viagem';
 let selectedWho = 'Felipe';
 let entries = [];
-let extratoCursor = new Date();
-let resumoCursor = new Date();
+/* Sempre no dia 1: evita que "mês anterior" pule um mês quando hoje é dia 29-31. */
+function inicioDoMes(d){ return new Date(d.getFullYear(), d.getMonth(), 1); }
+let extratoCursor = inicioDoMes(new Date());
+let resumoCursor = inicioDoMes(new Date());
 
 function fmt(v){
   return v.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+}
+
+/* Aceita o jeito brasileiro de digitar: "12,50", "1.234,56" e também "12.50". */
+function parseValor(raw){
+  let s = String(raw || '').replace(/[R$\s]/g,'').trim();
+  if(!s) return NaN;
+  const temVirgula = s.includes(',');
+  const temPonto = s.includes('.');
+  if(temVirgula && temPonto){
+    s = s.replace(/\./g,'').replace(',', '.');   // 1.234,56
+  } else if(temVirgula){
+    s = s.replace(',', '.');                      // 12,50
+  } else if(temPonto && /\.\d{3}$/.test(s)){
+    s = s.replace(/\./g,'');                      // 1.234 = mil duzentos e trinta e quatro
+  }
+  return parseFloat(s);
 }
 function monthKey(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
 function monthLabel(d){
@@ -538,7 +556,7 @@ function renderTudo(){
 
 async function salvarLancamento(){
   const valorRaw = document.getElementById('fValor').value;
-  const valor = parseFloat(valorRaw);
+  const valor = Math.round(parseValor(valorRaw) * 100) / 100;
   const msg = document.getElementById('saveMsg');
   if(!valorRaw || isNaN(valor) || valor <= 0){
     msg.style.color = 'var(--stamp)';
@@ -573,10 +591,14 @@ async function salvarLancamento(){
 }
 
 async function excluirLancamento(id){
+  const alvo = entries.find(e=>e.id === id);
+  const rotulo = alvo ? `"${alvo.desc}" de ${fmt(alvo.valor)}` : 'este lançamento';
+  if(!confirm(`Apagar ${rotulo}?`)) return;
   try{
     await lancRef().doc(id).delete();
   }catch(e){
     console.error('Não foi possível excluir:', e);
+    alert('Não foi possível excluir. Tente de novo.');
   }
 }
 
@@ -590,7 +612,7 @@ function showTab(name){
 
 /* ---------- extrato ---------- */
 function mudarMes(delta){
-  extratoCursor.setMonth(extratoCursor.getMonth()+delta);
+  extratoCursor = new Date(extratoCursor.getFullYear(), extratoCursor.getMonth()+delta, 1);
   renderExtrato();
 }
 function renderExtrato(){
@@ -622,7 +644,7 @@ function escapeHtml(s){
 
 /* ---------- resumo ---------- */
 function mudarMesResumo(delta){
-  resumoCursor.setMonth(resumoCursor.getMonth()+delta);
+  resumoCursor = new Date(resumoCursor.getFullYear(), resumoCursor.getMonth()+delta, 1);
   renderResumo();
 }
 function renderResumo(){

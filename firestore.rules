@@ -1,0 +1,30 @@
+rules_version = '2';
+
+// Regras do projeto "caderno-do-casal".
+// Onde colar: console.firebase.google.com > Firestore Database > aba "Regras"
+// > substituir tudo por este conteúdo > Publicar.
+//
+// ATENÇÃO: isto libera leitura e escrita para QUALQUER pessoa que abra o app,
+// porque o login é anônimo — o mesmo nível de proteção que o caderno já tinha.
+// A senha da tela de entrada é só uma trava visual, não protege os dados.
+// Fechar isso de verdade exige login com e-mail/senha; podemos fazer depois.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Documento de configuração (senha da tela de entrada).
+    match /caderno/{doc} {
+      allow read, write: if request.auth != null;
+    }
+
+    // Um documento por lançamento — permite os dois lançarem ao mesmo tempo.
+    match /lancamentos/{doc} {
+      allow read, write: if request.auth != null;
+    }
+
+    // Nada além disso.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

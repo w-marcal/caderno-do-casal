@@ -1,0 +1,7 @@
+# Configurações locais do Claude Code (podem conter caminhos e permissões da máquina)
+.claude/settings.local.json
+
+# Lixo do sistema / OneDrive
+Thumbs.db
+desktop.ini
+.DS_Store
