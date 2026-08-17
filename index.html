@@ -371,8 +371,9 @@
         <div class="card">
           <div class="section-label">Compartilhar</div>
           <div id="avisoFimDoMes" class="hidden"></div>
-          <button class="btn-primary" onclick="enviarResumoWhatsApp()">📲 Enviar resumo no WhatsApp</button>
-          <div class="budget-note">Monta o texto do mês e abre o WhatsApp para você escolher com quem enviar.</div>
+          <div id="botoesContatos"></div>
+          <button class="btn-ghost" style="width:100%; margin-top:8px" onclick="enviarResumoWhatsApp()">Escolher outro contato…</button>
+          <div class="budget-note">Monta o texto do mês e abre o WhatsApp com a conversa e a mensagem prontas — é só conferir e apertar enviar. Os telefones ficam na aba Plano.</div>
         </div>
       </section>
 
@@ -433,6 +434,13 @@
           <div id="planoDestino"></div>
           <div class="plan-warn hidden" id="destinoWarn"></div>
           <button class="plan-add" onclick="adicionarItem('destino')">+ adicionar destino</button>
+        </div>
+
+        <div class="card">
+          <div class="section-label">Contatos para o resumo</div>
+          <div class="plan-hint">Telefones de WhatsApp que aparecem como botão na aba Resumo. Ficam guardados aqui, não no código do site.</div>
+          <div id="planoContatos"></div>
+          <button class="plan-add" onclick="adicionarContato()">+ adicionar contato</button>
         </div>
 
         <div class="card">
@@ -626,6 +634,12 @@ const PLANO_PADRAO = {
     estimativaPorMes:3750,
     status:'Ainda não confirmado pelo banco'
   },
+  /* Telefones ficam vazios de propósito: o repositório é público, então os
+     números são digitados no app e guardados no Firestore, nunca no código. */
+  contatos: [
+    {nome:'Felipe', telefone:''},
+    {nome:'Layla', telefone:''}
+  ],
   destino: [
     {nome:'Reserva de emergência', pct:50},
     {nome:'Quitar dívidas', pct:20},
@@ -843,8 +857,19 @@ function normalizarPlano(p){
     },
     destino: Array.isArray(p.destino) ? p.destino.map(d=>({
       nome: String(d && d.nome || ''), pct: Number(d && d.pct) || 0
-    })) : base.destino
+    })) : base.destino,
+    contatos: Array.isArray(p.contatos) ? p.contatos.map(c=>({
+      nome: String(c && c.nome || ''), telefone: String(c && c.telefone || '')
+    })) : base.contatos
   };
+}
+
+/* "+55 21 90000-0000" -> "5521900000000". Se vier sem o 55, completa. */
+function telefoneLimpo(t){
+  let d = String(t||'').replace(/\D/g,'');
+  if(!d) return '';
+  if(d.length <= 11) d = '55' + d;
+  return d;
 }
 
 const soma = arr => arr.reduce((s,it)=>s + (Number(it.valor)||0), 0);
@@ -885,6 +910,20 @@ function renderPlano(){
   document.getElementById('planoVariaveis').innerHTML = plano.variaveis.map((it,i)=>item('variaveis',it,i,false)).join('');
   document.getElementById('planoExtras').innerHTML  = plano.extras.map((it,i)=>item('extras',it,i,false)).join('');
   document.getElementById('extrasObs').textContent  = plano.extrasObs;
+
+  document.getElementById('planoContatos').innerHTML = plano.contatos.map((c,i)=>`
+    <div class="plan-item">
+      <div class="plan-head">
+        <input class="plan-nome" type="text" value="${escapeHtml(c.nome)}" placeholder="nome"
+               oninput="editarContato(${i},'nome',this.value)">
+        <button class="plan-del" onclick="removerItem('contatos',${i})">✕</button>
+      </div>
+      <div style="margin-top:8px">
+        <div class="mil-lbl">WhatsApp</div>
+        <input type="text" inputmode="tel" placeholder="+55 21 90000-0000" value="${escapeHtml(c.telefone)}"
+               oninput="editarContato(${i},'telefone',this.value)">
+      </div>
+    </div>`).join('');
 
   document.getElementById('retroMeses').value  = plano.retroativo.meses.join(', ');
   document.getElementById('retroValor').value  = numParaInput(plano.retroativo.estimativaPorMes);
@@ -976,6 +1015,18 @@ function editarRetro(campo, valor){
   renderDestino();
 }
 function editarObs(v){ plano.observacao = v; marcarSujo(); }
+function editarContato(i, campo, valor){
+  const c = plano.contatos[i];
+  if(!c) return;
+  c[campo] = valor;
+  marcarSujo();
+  renderBotoesContatos();
+}
+function adicionarContato(){
+  plano.contatos.push({nome:'', telefone:''});
+  marcarSujo();
+  renderPlano();
+}
 
 function adicionarItem(secao){
   if(secao === 'destino') plano.destino.push({nome:'', pct:0});
@@ -1126,15 +1177,29 @@ function montarResumoTexto(){
   return linhas.join('\n');
 }
 
-function enviarResumoWhatsApp(){
+/* Sem telefone, abre o seletor de contatos. Com telefone, já abre a conversa
+   daquela pessoa. Em nenhum dos casos a mensagem sai sozinha: o WhatsApp
+   sempre espera você apertar enviar. */
+function enviarResumoWhatsApp(telefone){
   const texto = montarResumoTexto();
-  /* navigator.share abre a folha do celular, onde dá para escolher o WhatsApp
-     e o contato. Sem ele (navegador de computador), cai no link do WhatsApp. */
+  const num = telefoneLimpo(telefone);
+  if(num){
+    window.open('https://wa.me/' + num + '?text=' + encodeURIComponent(texto), '_blank');
+    return;
+  }
   if(navigator.share){
     navigator.share({ text: texto }).catch(()=>{});
   } else {
     window.open('https://wa.me/?text=' + encodeURIComponent(texto), '_blank');
   }
+}
+
+function renderBotoesContatos(){
+  const comTelefone = plano.contatos.filter(c=>telefoneLimpo(c.telefone));
+  document.getElementById('botoesContatos').innerHTML = comTelefone.map(c=>`
+    <button class="btn-primary" style="margin-bottom:8px"
+            onclick="enviarResumoWhatsApp('${escapeHtml(c.telefone)}')">📲 Enviar para ${escapeHtml(c.nome || 'contato')}</button>`).join('')
+    || '<div class="plan-hint" style="margin:0 0 4px">Cadastre os telefones na aba Plano para ter um botão direto aqui.</div>';
 }
 
 /* ---------- milhas ---------- */
@@ -1551,6 +1616,8 @@ function renderResumo(){
   document.getElementById('budgetNote').textContent =
     `Referência: renda do casal ${fmt(renda)}/mês e gastos previstos ${fmt(previsto)}/mês ` +
     `(${fmt(totalFixos())} fixos + ${fmt(totalVariaveis())} variáveis). Editem na aba Plano.`;
+
+  renderBotoesContatos();
 }
 
 initLock();
