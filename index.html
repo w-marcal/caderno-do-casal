@@ -301,33 +301,48 @@
 <script>
 /* =====================================================================
    CONFIGURAÇÃO DO FIREBASE
-   Cole aqui embaixo o bloco "" que o Firebase te deu no
+   Cole aqui embaixo o bloco "firebaseConfig" que o Firebase te deu no
    passo "Registrar o app Web". Troque os valores de exemplo pelos seus.
    ===================================================================== */
-const firebaseConfig = { apiKey: "AIzaSyArtSZIICRDUbIq9Nfv902kNGU9BuGSAvA", 
-                        authDomain: "caderno-do-casal.firebaseapp.com", 
-                        projectId: "caderno-do-casal", 
-                        storageBucket: "caderno-do-casal.firebasestorage.app", 
-                        messagingSenderId: "76394047088", 
-                        appId: "1:76394047088:web:5d99b68a41b3f88057f6b5" };
+const firebaseConfig = {
+  apiKey: "AIzaSyArtSZIICRDUbIq9Nfv902kNGU9BuGSAvA",
+  authDomain: "caderno-do-casal.firebaseapp.com",
+  projectId: "caderno-do-casal",
+  storageBucket: "caderno-do-casal.firebasestorage.app",
+  messagingSenderId: "76394047088",
+  appId: "1:76394047088:web:5d99b68a41b3f88057f6b5"
 };
 
-firebase.initializeApp();
+firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 const auth = firebase.auth();
 
-/* Garante que o app está autenticado (login anônimo) antes de ler/gravar */
+/* Garante que o app está autenticado (login anônimo) antes de ler/gravar.
+   A promessa é reaproveitada: o listener é cancelado assim que autentica. */
+let authPromise = null;
 function ensureAuth(){
-  return new Promise((resolve, reject)=>{
-    auth.onAuthStateChanged(user=>{
-      if(user) resolve(user);
-    });
-    auth.signInAnonymously().catch(reject);
+  if(authPromise) return authPromise;
+  authPromise = new Promise((resolve, reject)=>{
+    let unsub = null, done = false;
+    const finish = (fn, arg)=>{ done = true; if(unsub) unsub(); fn(arg); };
+    unsub = auth.onAuthStateChanged(
+      user=>{ if(user && !done) finish(resolve, user); },
+      err=>{ if(!done) finish(reject, err); }
+    );
+    if(done && unsub) unsub();
+    auth.signInAnonymously().catch(err=>{ if(!done) finish(reject, err); });
   });
+  authPromise.catch(()=>{ authPromise = null; });
+  return authPromise;
 }
 
+/* Coleção onde cada lançamento é um documento próprio.
+   Assim os dois podem lançar ao mesmo tempo sem um sobrescrever o outro. */
+const LANC = 'lancamentos';
+function lancRef(){ return db.collection(LANC); }
+
 /* Shim que imita window.storage.get/set, agora usando Firestore.
-   Cada "key" vira um documento dentro da coleção "caderno". */
+   Usado só para o documento de configuração (senha). */
 async function dbGet(key){
   await ensureAuth();
   const snap = await db.collection('caderno').doc(key).get();
@@ -425,10 +440,12 @@ function unlockApp(){
 async function boot(){
   buildCatGrid();
   document.getElementById('fData').valueAsDate = new Date();
-  await loadEntries();
-  renderExtrato();
-  renderResumo();
-  document.getElementById('headerSub').textContent = entries.length + ' lançamento(s) registrados no total';
+  try{
+    await migrarSeNecessario();
+  }catch(e){
+    console.error('Não foi possível migrar os lançamentos antigos:', e);
+  }
+  await assinarLancamentos();
 }
 
 function buildCatGrid(){
@@ -450,16 +467,73 @@ function setWho(w){
 }
 
 /* ---------- storage ---------- */
-async function loadEntries(){
-  try{
-    const res = await dbGet('entries');
-    entries = res && res.value ? JSON.parse(res.value) : [];
-  }catch(e){
-    entries = [];
-  }
+
+/* Converte o formato antigo (um único documento com todos os lançamentos em
+   JSON) para um documento por lançamento. Roda dentro de uma transação, então
+   é seguro mesmo se os dois abrirem o app ao mesmo tempo: o primeiro migra, o
+   segundo enxerga a marca "migradoEm" e não faz nada. O documento antigo é
+   mantido intacto como backup. */
+async function migrarSeNecessario(){
+  await ensureAuth();
+  const legadoRef = db.collection('caderno').doc('entries');
+  await db.runTransaction(async tx=>{
+    const snap = await tx.get(legadoRef);
+    if(!snap.exists) return;
+    const dados = snap.data() || {};
+    if(dados.migradoEm || !dados.value) return;
+    let antigos = [];
+    try{ antigos = JSON.parse(dados.value) || []; }catch(e){ antigos = []; }
+    antigos.forEach(e=>{
+      if(!e || !e.id || !e.data) return;
+      tx.set(lancRef().doc(String(e.id)), {
+        valor: Number(e.valor) || 0,
+        categoria: e.categoria || 'outros',
+        quem: e.quem || 'Felipe',
+        desc: e.desc || '',
+        data: e.data,
+        criadoEm: e.data
+      });
+    });
+    tx.update(legadoRef, { migradoEm: new Date().toISOString() });
+  });
 }
-async function persistEntries(){
-  await dbSet('entries', JSON.stringify(entries));
+
+/* Escuta a coleção em tempo real: o que a Layla lançar no celular dela
+   aparece aqui sem precisar recarregar a página. */
+let jaAssinou = false;
+function assinarLancamentos(){
+  if(jaAssinou) return Promise.resolve();
+  jaAssinou = true;
+  return new Promise(resolve=>{
+    let primeira = true;
+    lancRef().onSnapshot(snap=>{
+      entries = snap.docs.map(d=>{
+        const v = d.data() || {};
+        return {
+          id: d.id,
+          valor: Number(v.valor) || 0,
+          categoria: v.categoria || 'outros',
+          quem: v.quem || 'Felipe',
+          desc: v.desc || '',
+          data: v.data || ''
+        };
+      }).filter(e=>e.data);
+      renderTudo();
+      if(primeira){ primeira = false; resolve(); }
+    }, err=>{
+      console.error('Erro ao sincronizar:', err);
+      document.getElementById('headerSub').textContent =
+        'Sem conexão com o caderno — verifique as regras do Firestore.';
+      if(primeira){ primeira = false; resolve(); }
+    });
+  });
+}
+
+function renderTudo(){
+  renderExtrato();
+  renderResumo();
+  document.getElementById('headerSub').textContent =
+    entries.length + ' lançamento(s) registrados no total';
 }
 
 async function salvarLancamento(){
@@ -473,24 +547,24 @@ async function salvarLancamento(){
   }
   const desc = document.getElementById('fDesc').value.trim();
   const dataStr = document.getElementById('fData').value || new Date().toISOString().slice(0,10);
+  const id = Date.now()+'-'+Math.random().toString(36).slice(2,7);
   const entry = {
-    id: Date.now()+'-'+Math.random().toString(36).slice(2,7),
     valor, categoria: selectedCat, quem: selectedWho,
     desc: desc || CATEGORIES.find(c=>c.id===selectedCat).label,
-    data: dataStr
+    data: dataStr,
+    criadoEm: new Date().toISOString()
   };
   document.getElementById('saveBtn').disabled = true;
   try{
-    entries.push(entry);
-    await persistEntries();
+    /* Grava só este lançamento — não reescreve os dos outros. A tela já
+       atualiza sozinha pelo listener em tempo real. */
+    await lancRef().doc(id).set(entry);
     msg.style.color = 'var(--sage)';
     msg.textContent = '✓ Lançamento carimbado no caderno.';
     document.getElementById('fValor').value = '';
     document.getElementById('fDesc').value = '';
-    renderExtrato(); renderResumo();
-    document.getElementById('headerSub').textContent = entries.length + ' lançamento(s) registrados no total';
   }catch(e){
-    entries.pop();
+    console.error(e);
     msg.style.color = 'var(--stamp)';
     msg.textContent = 'Não foi possível salvar. Tente de novo.';
   }
@@ -499,9 +573,11 @@ async function salvarLancamento(){
 }
 
 async function excluirLancamento(id){
-  entries = entries.filter(e=>e.id !== id);
-  await persistEntries();
-  renderExtrato(); renderResumo();
+  try{
+    await lancRef().doc(id).delete();
+  }catch(e){
+    console.error('Não foi possível excluir:', e);
+  }
 }
 
 /* ---------- tabs ---------- */
