@@ -301,19 +301,18 @@
 <script>
 /* =====================================================================
    CONFIGURAÇÃO DO FIREBASE
-   Cole aqui embaixo o bloco "firebaseConfig" que o Firebase te deu no
+   Cole aqui embaixo o bloco "" que o Firebase te deu no
    passo "Registrar o app Web". Troque os valores de exemplo pelos seus.
    ===================================================================== */
-const firebaseConfig = {
-  apiKey: "COLE_AQUI",
-  authDomain: "COLE_AQUI.firebaseapp.com",
-  projectId: "COLE_AQUI",
-  storageBucket: "COLE_AQUI.appspot.com",
-  messagingSenderId: "COLE_AQUI",
-  appId: "COLE_AQUI"
+const firebaseConfig = { apiKey: "AIzaSyArtSZIICRDUbIq9Nfv902kNGU9BuGSAvA", 
+                        authDomain: "caderno-do-casal.firebaseapp.com", 
+                        projectId: "caderno-do-casal", 
+                        storageBucket: "caderno-do-casal.firebasestorage.app", 
+                        messagingSenderId: "76394047088", 
+                        appId: "1:76394047088:web:5d99b68a41b3f88057f6b5" };
 };
 
-firebase.initializeApp(firebaseConfig);
+firebase.initializeApp();
 const db = firebase.firestore();
 const auth = firebase.auth();
 
