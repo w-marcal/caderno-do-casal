@@ -248,6 +248,29 @@
   .pct-in span{padding-right:9px; color:var(--ink-soft); font-size:13px;}
   .pct-amt{font-family:'JetBrains Mono',monospace; font-size:13.5px; font-weight:600; color:var(--sage);}
 
+  /* ---- milhas ---- */
+  .mil-grid{display:flex; gap:8px; margin-top:8px;}
+  .mil-field{flex:1; min-width:0;}
+  .mil-lbl{font-size:10px; color:var(--ink-soft); font-weight:700; text-transform:uppercase; letter-spacing:.07em; margin-bottom:3px;}
+  .mil-box{display:flex; align-items:center; border:1.5px solid var(--line); border-radius:8px; background:#fff;}
+  .mil-box span{padding-left:8px; font-family:'JetBrains Mono',monospace; font-size:11.5px; color:var(--ink-soft);}
+  .mil-box input{
+    border:none !important; padding:7px 8px !important; text-align:right; width:100%;
+    font-family:'JetBrains Mono',monospace; font-size:14px; font-weight:600;
+  }
+  .mil-total{
+    margin-top:8px; padding-top:7px; border-top:1px dashed var(--line);
+    display:flex; justify-content:space-between; align-items:baseline; font-size:12px; color:var(--ink-soft);
+  }
+  .mil-total .v{font-family:'JetBrains Mono',monospace; font-weight:600; font-size:13.5px; color:var(--sage);}
+  .mil-tag{
+    font-family:'JetBrains Mono',monospace; font-size:10px; font-weight:600; text-transform:uppercase;
+    letter-spacing:.06em; padding:2px 6px; border-radius:5px; margin-right:6px;
+  }
+  .mil-tag.venda{background:var(--sage-bg); color:var(--sage);}
+  .mil-tag.uso{background:var(--stamp-bg); color:var(--stamp);}
+  select{appearance:none; background-image:linear-gradient(45deg,transparent 50%,var(--ink-soft) 50%),linear-gradient(135deg,var(--ink-soft) 50%,transparent 50%); background-position:calc(100% - 16px) 50%,calc(100% - 11px) 50%; background-size:5px 5px,5px 5px; background-repeat:no-repeat;}
+
   .share-hint{
     font-size:11.5px; color:var(--ink-soft); text-align:center; line-height:1.5; margin:14px 0 4px;
   }
@@ -344,6 +367,13 @@
           <div id="resOrcado"></div>
           <div class="budget-note" id="budgetNote"></div>
         </div>
+
+        <div class="card">
+          <div class="section-label">Compartilhar</div>
+          <div id="avisoFimDoMes" class="hidden"></div>
+          <button class="btn-primary" onclick="enviarResumoWhatsApp()">📲 Enviar resumo no WhatsApp</button>
+          <div class="budget-note">Monta o texto do mês e abre o WhatsApp para você escolher com quem enviar.</div>
+        </div>
       </section>
 
       <!-- PLANO -->
@@ -417,6 +447,62 @@
         <div class="save-msg" id="planoMsg"></div>
       </section>
 
+      <!-- MILHAS -->
+      <section id="tabMilhas" class="hidden">
+        <div class="card">
+          <div class="section-label">Meus programas</div>
+          <div class="plan-hint">Quantidade que você tem hoje e quanto vale o milheiro em cada um. Vender ou usar milhas abaixo já desconta daqui.</div>
+          <div id="milProgramas"></div>
+          <button class="plan-add" onclick="adicionarPrograma()">+ adicionar programa</button>
+        </div>
+
+        <div class="card">
+          <div class="section-label">Total</div>
+          <div class="derived" id="milTotais"></div>
+        </div>
+
+        <div class="card">
+          <div class="section-label">Vender ou usar milhas</div>
+          <div class="who-toggle">
+            <button class="who-btn sel" id="milTipoVenda" onclick="setMilTipo('venda')">Vender</button>
+            <button class="who-btn" id="milTipoUso" onclick="setMilTipo('uso')">Usar</button>
+          </div>
+
+          <label>Programa</label>
+          <select id="milPrograma" onchange="previewMilhas()"></select>
+
+          <label>Quantidade de milhas</label>
+          <input type="text" id="milQtd" inputmode="numeric" placeholder="ex: 50.000" oninput="previewMilhas()">
+
+          <label id="milMilheiroLabel">Valor do milheiro na venda</label>
+          <div class="valor-row">
+            <span>R$</span>
+            <input type="text" id="milMilheiro" inputmode="decimal" placeholder="0,00" oninput="previewMilhas()">
+          </div>
+
+          <label>Observação (opcional)</label>
+          <input type="text" id="milObs" placeholder="ex: venda para o Hotmilhas, passagem Lisboa">
+
+          <label>Data</label>
+          <input type="date" id="milData">
+
+          <div class="derived" id="milPreview" style="margin-top:14px"></div>
+
+          <button class="stamp-btn" id="milBtn" onclick="registrarMovimentoMilhas()">Registrar</button>
+          <div class="save-msg" id="milMsg"></div>
+        </div>
+
+        <div class="card">
+          <div class="section-label">Histórico</div>
+          <div id="milHistorico"></div>
+        </div>
+
+        <div class="save-bar">
+          <button id="milSaveBtn" onclick="salvarMilhas()" disabled>Tudo salvo</button>
+        </div>
+        <div class="save-msg" id="milSaveMsg"></div>
+      </section>
+
     </main>
   </div>
 
@@ -425,6 +511,7 @@
     <button id="navExtrato" onclick="showTab('extrato')"><span class="ico">📜</span>Extrato</button>
     <button id="navResumo" onclick="showTab('resumo')"><span class="ico">◆</span>Resumo</button>
     <button id="navPlano" onclick="showTab('plano')"><span class="ico">⚖</span>Plano</button>
+    <button id="navMilhas" onclick="showTab('milhas')"><span class="ico">✈</span>Milhas</button>
   </nav>
 </div>
 
@@ -630,12 +717,14 @@ function unlockApp(){
 async function boot(){
   buildCatGrid();
   document.getElementById('fData').valueAsDate = new Date();
+  document.getElementById('milData').valueAsDate = new Date();
+  setMilTipo('venda');
   try{
     await migrarSeNecessario();
   }catch(e){
     console.error('Não foi possível migrar os lançamentos antigos:', e);
   }
-  await Promise.all([ assinarLancamentos(), assinarPlano() ]);
+  await Promise.all([ assinarLancamentos(), assinarPlano(), assinarMilhas() ]);
 }
 
 function buildCatGrid(){
@@ -998,9 +1087,368 @@ async function excluirLancamento(id){
   }
 }
 
+/* ---------- resumo por WhatsApp ---------- */
+
+function montarResumoTexto(){
+  const key = monthKey(resumoCursor);
+  const list = entries.filter(e=>e.data.slice(0,7)===key);
+  const total = list.reduce((s,e)=>s+e.valor,0);
+  const porQuem = {Felipe:0, Layla:0};
+  list.forEach(e=>{ porQuem[e.quem] = (porQuem[e.quem]||0) + e.valor; });
+  const porCat = {};
+  list.forEach(e=>{ porCat[e.categoria] = (porCat[e.categoria]||0) + e.valor; });
+
+  const linhas = [];
+  linhas.push(`*Caderno do Casal* — ${monthLabel(resumoCursor)}`);
+  linhas.push('');
+  linhas.push(`Total gasto: *${fmt(total)}*`);
+  linhas.push(`Felipe: ${fmt(porQuem.Felipe||0)}  |  Layla: ${fmt(porQuem.Layla||0)}`);
+
+  const cats = CATEGORIES.filter(c=>porCat[c.id]).sort((a,b)=>porCat[b.id]-porCat[a.id]);
+  if(cats.length){
+    linhas.push('');
+    linhas.push('*Por categoria*');
+    cats.forEach(c=>linhas.push(`${c.em} ${c.label}: ${fmt(porCat[c.id])}`));
+  }
+
+  const renda = rendaDoCasal();
+  const previsto = totalFixos() + totalVariaveis();
+  linhas.push('');
+  linhas.push('*Comparado ao plano*');
+  linhas.push(`Renda do casal: ${fmt(renda)}`);
+  linhas.push(`Previsto no mês: ${fmt(previsto)}`);
+  linhas.push(`Sobra: ${fmt(renda - total)}`);
+
+  if(list.length === 0){
+    linhas.push('');
+    linhas.push('(nenhum lançamento neste mês)');
+  }
+  return linhas.join('\n');
+}
+
+function enviarResumoWhatsApp(){
+  const texto = montarResumoTexto();
+  /* navigator.share abre a folha do celular, onde dá para escolher o WhatsApp
+     e o contato. Sem ele (navegador de computador), cai no link do WhatsApp. */
+  if(navigator.share){
+    navigator.share({ text: texto }).catch(()=>{});
+  } else {
+    window.open('https://wa.me/?text=' + encodeURIComponent(texto), '_blank');
+  }
+}
+
+/* ---------- milhas ---------- */
+
+const MILHAS_PADRAO = {
+  atualizadoEm: '2026-08-17',
+  programas: [
+    {nome:'Latam',   quantidade:0, milheiro:0},
+    {nome:'Smiles',  quantidade:0, milheiro:0},
+    {nome:'Azul',    quantidade:0, milheiro:0},
+    {nome:'Esfera',  quantidade:0, milheiro:0},
+    {nome:'Livelo',  quantidade:0, milheiro:0},
+    {nome:'Aegean',  quantidade:0, milheiro:0},
+    {nome:'Revolut', quantidade:0, milheiro:0},
+    {nome:'Avios',   quantidade:0, milheiro:0}
+  ],
+  movimentos: []
+};
+let milhas = JSON.parse(JSON.stringify(MILHAS_PADRAO));
+let milhasSujo = false;
+let milTipo = 'venda';
+
+function normalizarMilhas(m){
+  const base = JSON.parse(JSON.stringify(MILHAS_PADRAO));
+  if(!m || typeof m !== 'object') return base;
+  return {
+    atualizadoEm: m.atualizadoEm || base.atualizadoEm,
+    programas: Array.isArray(m.programas) ? m.programas.map(p=>({
+      nome: String(p && p.nome || ''),
+      quantidade: Number(p && p.quantidade) || 0,
+      milheiro: Number(p && p.milheiro) || 0
+    })) : base.programas,
+    movimentos: Array.isArray(m.movimentos) ? m.movimentos.map(v=>({
+      id: String(v && v.id || ''),
+      tipo: v && v.tipo === 'uso' ? 'uso' : 'venda',
+      programa: String(v && v.programa || ''),
+      quantidade: Number(v && v.quantidade) || 0,
+      milheiro: Number(v && v.milheiro) || 0,
+      valor: Number(v && v.valor) || 0,
+      obs: String(v && v.obs || ''),
+      data: String(v && v.data || ''),
+      quem: String(v && v.quem || '')
+    })) : []
+  };
+}
+
+/* 50000 -> "50.000" */
+function fmtMilhas(n){ return Math.round(Number(n)||0).toLocaleString('pt-BR'); }
+function valorEstoque(p){ return (Number(p.quantidade)||0) / 1000 * (Number(p.milheiro)||0); }
+function acharPrograma(nome){ return milhas.programas.find(p=>p.nome === nome); }
+
+function renderMilhas(){
+  document.getElementById('milProgramas').innerHTML = milhas.programas.map((p,i)=>`
+    <div class="plan-item">
+      <div class="plan-head">
+        <input class="plan-nome" type="text" value="${escapeHtml(p.nome)}" placeholder="programa"
+               oninput="editarPrograma(${i},'nome',this.value)">
+        <button class="plan-del" onclick="removerPrograma(${i})">✕</button>
+      </div>
+      <div class="mil-grid">
+        <div class="mil-field">
+          <div class="mil-lbl">Quantidade</div>
+          <div class="mil-box">
+            <input type="text" inputmode="numeric" value="${escapeHtml(fmtMilhas(p.quantidade))}"
+                   oninput="editarPrograma(${i},'quantidade',this.value)">
+          </div>
+        </div>
+        <div class="mil-field">
+          <div class="mil-lbl">Milheiro</div>
+          <div class="mil-box"><span>R$</span>
+            <input type="text" inputmode="decimal" value="${escapeHtml((Number(p.milheiro)||0).toFixed(2).replace('.',','))}"
+                   oninput="editarPrograma(${i},'milheiro',this.value)">
+          </div>
+        </div>
+      </div>
+      <div class="mil-total"><span>Valor estimado</span><span class="v">${fmt(valorEstoque(p))}</span></div>
+    </div>`).join('');
+
+  const totalMilhas = milhas.programas.reduce((s,p)=>s + (Number(p.quantidade)||0), 0);
+  const totalValor  = milhas.programas.reduce((s,p)=>s + valorEstoque(p), 0);
+  const vendido = milhas.movimentos.filter(m=>m.tipo==='venda').reduce((s,m)=>s+m.valor, 0);
+  const usado   = milhas.movimentos.filter(m=>m.tipo==='uso').reduce((s,m)=>s+m.valor, 0);
+  const linha = (lbl,val,cls,strong)=>`
+    <div class="derived-row${strong?' strong':''}"><span class="d-lbl">${lbl}</span><span class="d-val ${cls||''}">${val}</span></div>`;
+  document.getElementById('milTotais').innerHTML =
+    linha('Milhas acumuladas', fmtMilhas(totalMilhas)) +
+    linha('Valor estimado do estoque', fmt(totalValor), 'bal-good', true) +
+    (vendido > 0 ? linha('Já recebido em vendas', fmt(vendido)) : '') +
+    (usado > 0 ? linha('Já economizado em passagens', fmt(usado)) : '');
+
+  const sel = document.getElementById('milPrograma');
+  const escolhido = sel.value;
+  sel.innerHTML = milhas.programas.map(p=>`<option value="${escapeHtml(p.nome)}">${escapeHtml(p.nome)}</option>`).join('');
+  if(escolhido && milhas.programas.some(p=>p.nome===escolhido)) sel.value = escolhido;
+
+  renderHistoricoMilhas();
+  previewMilhas();
+}
+
+function renderHistoricoMilhas(){
+  const el = document.getElementById('milHistorico');
+  const lista = milhas.movimentos.slice().sort((a,b)=> b.data.localeCompare(a.data) || b.id.localeCompare(a.id));
+  if(lista.length === 0){
+    el.innerHTML = '<div class="empty-state">Nenhuma venda ou uso registrado ainda.</div>';
+    return;
+  }
+  el.innerHTML = lista.map(m=>{
+    const [y,mes,d] = (m.data||'-----').split('-');
+    return `<div class="ledger-row">
+      <div class="led-mid">
+        <div class="led-desc"><span class="mil-tag ${m.tipo}">${m.tipo}</span>${escapeHtml(m.programa)}</div>
+        <div class="led-meta">${fmtMilhas(m.quantidade)} milhas · ${fmt(m.milheiro)}/milheiro · ${d}/${mes}${m.obs ? ' · ' + escapeHtml(m.obs) : ''}</div>
+      </div>
+      <div class="led-val">${fmt(m.valor)}</div>
+      <button class="led-del" onclick="excluirMovimentoMilhas('${m.id}')">✕</button>
+    </div>`;
+  }).join('');
+}
+
+function marcarMilhasSujo(){
+  milhasSujo = true;
+  const btn = document.getElementById('milSaveBtn');
+  btn.disabled = false;
+  btn.textContent = 'Salvar programas';
+}
+
+function editarPrograma(i, campo, valor){
+  const p = milhas.programas[i];
+  if(!p) return;
+  if(campo === 'nome') p.nome = valor;
+  else p[campo] = parseValor(valor) || 0;
+  marcarMilhasSujo();
+  /* Atualiza o valor estimado do próprio card sem redesenhar os campos. */
+  const card = document.querySelectorAll('#milProgramas .plan-item')[i];
+  if(card){
+    const alvo = card.querySelector('.mil-total .v');
+    if(alvo) alvo.textContent = fmt(valorEstoque(p));
+  }
+  atualizarTotaisMilhas();
+}
+/* Atualiza só os totais e o preview — não redesenha os campos, senão o
+   cursor pularia para fora enquanto a pessoa digita. */
+function atualizarTotaisMilhas(){
+  const totalMilhas = milhas.programas.reduce((s,p)=>s + (Number(p.quantidade)||0), 0);
+  const totalValor  = milhas.programas.reduce((s,p)=>s + valorEstoque(p), 0);
+  const vendido = milhas.movimentos.filter(m=>m.tipo==='venda').reduce((s,m)=>s+m.valor, 0);
+  const usado   = milhas.movimentos.filter(m=>m.tipo==='uso').reduce((s,m)=>s+m.valor, 0);
+  const linha = (lbl,val,cls,strong)=>`
+    <div class="derived-row${strong?' strong':''}"><span class="d-lbl">${lbl}</span><span class="d-val ${cls||''}">${val}</span></div>`;
+  document.getElementById('milTotais').innerHTML =
+    linha('Milhas acumuladas', fmtMilhas(totalMilhas)) +
+    linha('Valor estimado do estoque', fmt(totalValor), 'bal-good', true) +
+    (vendido > 0 ? linha('Já recebido em vendas', fmt(vendido)) : '') +
+    (usado > 0 ? linha('Já economizado em passagens', fmt(usado)) : '');
+  previewMilhas();
+}
+
+function adicionarPrograma(){
+  milhas.programas.push({nome:'', quantidade:0, milheiro:0});
+  marcarMilhasSujo();
+  renderMilhas();
+}
+function removerPrograma(i){
+  const p = milhas.programas[i];
+  const nome = p && p.nome ? `"${p.nome}"` : 'este programa';
+  if(!confirm(`Tirar ${nome} da lista? O histórico de vendas e usos continua.`)) return;
+  milhas.programas.splice(i,1);
+  marcarMilhasSujo();
+  renderMilhas();
+}
+
+function setMilTipo(t){
+  milTipo = t;
+  document.getElementById('milTipoVenda').classList.toggle('sel', t==='venda');
+  document.getElementById('milTipoUso').classList.toggle('sel', t==='uso');
+  document.getElementById('milMilheiroLabel').textContent =
+    t==='venda' ? 'Valor do milheiro na venda' : 'Valor do milheiro equivalente (quanto a passagem custaria)';
+  document.getElementById('milBtn').textContent = t==='venda' ? 'Registrar venda' : 'Registrar uso';
+  previewMilhas();
+}
+
+function previewMilhas(){
+  const qtd = parseValor(document.getElementById('milQtd').value) || 0;
+  const milheiro = parseValor(document.getElementById('milMilheiro').value) || 0;
+  const nome = document.getElementById('milPrograma').value;
+  const prog = acharPrograma(nome);
+  const total = qtd / 1000 * milheiro;
+  const saldoAtual = prog ? (Number(prog.quantidade)||0) : 0;
+  const depois = saldoAtual - qtd;
+  const linha = (lbl,val,cls,strong)=>`
+    <div class="derived-row${strong?' strong':''}"><span class="d-lbl">${lbl}</span><span class="d-val ${cls||''}">${val}</span></div>`;
+  document.getElementById('milPreview').innerHTML =
+    linha(milTipo==='venda' ? 'Você recebe' : 'Equivale a', fmt(total), 'bal-good', true) +
+    linha('Saldo em ' + (nome || 'programa'), fmtMilhas(saldoAtual) + ' → ' + fmtMilhas(Math.max(depois,0)),
+          depois < 0 ? 'bal-bad' : '') +
+    (depois < 0 ? `<div class="plan-warn">Faltam ${fmtMilhas(-depois)} milhas nesse programa.</div>` : '');
+}
+
+async function registrarMovimentoMilhas(){
+  const msg = document.getElementById('milMsg');
+  const nome = document.getElementById('milPrograma').value;
+  const prog = acharPrograma(nome);
+  const qtd = parseValor(document.getElementById('milQtd').value) || 0;
+  const milheiro = parseValor(document.getElementById('milMilheiro').value) || 0;
+  const erro = t=>{ msg.style.color='var(--stamp)'; msg.textContent=t; };
+  if(!prog){ erro('Escolha um programa.'); return; }
+  if(qtd <= 0){ erro('Informe a quantidade de milhas.'); return; }
+  if(qtd > (Number(prog.quantidade)||0)){
+    erro(`Você tem ${fmtMilhas(prog.quantidade)} milhas na ${prog.nome}.`); return;
+  }
+  const btn = document.getElementById('milBtn');
+  btn.disabled = true;
+  const mov = {
+    id: Date.now()+'-'+Math.random().toString(36).slice(2,7),
+    tipo: milTipo,
+    programa: prog.nome,
+    quantidade: qtd,
+    milheiro: milheiro,
+    valor: qtd / 1000 * milheiro,
+    obs: document.getElementById('milObs').value.trim(),
+    data: document.getElementById('milData').value || new Date().toISOString().slice(0,10),
+    quem: selectedWho
+  };
+  /* Baixa do saldo do programa e guarda o movimento no mesmo documento. */
+  const qtdAntes = prog.quantidade;
+  prog.quantidade = qtdAntes - qtd;
+  milhas.movimentos.push(mov);
+  try{
+    await persistirMilhas();
+    msg.style.color = 'var(--sage)';
+    msg.textContent = milTipo==='venda' ? '✓ Venda registrada e saldo atualizado.' : '✓ Uso registrado e saldo atualizado.';
+    document.getElementById('milQtd').value = '';
+    document.getElementById('milObs').value = '';
+    renderMilhas();
+  }catch(e){
+    console.error(e);
+    prog.quantidade = qtdAntes;
+    milhas.movimentos = milhas.movimentos.filter(m=>m.id !== mov.id);
+    erro('Não foi possível registrar. Tente de novo.');
+  }
+  btn.disabled = false;
+  setTimeout(()=>{ msg.textContent=''; }, 3000);
+}
+
+async function excluirMovimentoMilhas(id){
+  const mov = milhas.movimentos.find(m=>m.id === id);
+  if(!mov) return;
+  if(!confirm(`Apagar ${mov.tipo} de ${fmtMilhas(mov.quantidade)} milhas na ${mov.programa}? As milhas voltam para o saldo.`)) return;
+  const prog = acharPrograma(mov.programa);
+  const qtdAntes = prog ? prog.quantidade : null;
+  if(prog) prog.quantidade = (Number(prog.quantidade)||0) + mov.quantidade;
+  milhas.movimentos = milhas.movimentos.filter(m=>m.id !== id);
+  try{
+    await persistirMilhas();
+    renderMilhas();
+  }catch(e){
+    console.error(e);
+    if(prog) prog.quantidade = qtdAntes;
+    milhas.movimentos.push(mov);
+    alert('Não foi possível apagar. Tente de novo.');
+  }
+}
+
+async function persistirMilhas(){
+  milhas.atualizadoEm = new Date().toISOString().slice(0,10);
+  await db.collection('caderno').doc('milhas').set(milhas);
+  milhasSujo = false;
+  const btn = document.getElementById('milSaveBtn');
+  btn.disabled = true;
+  btn.textContent = 'Tudo salvo';
+}
+
+async function salvarMilhas(){
+  const msg = document.getElementById('milSaveMsg');
+  document.getElementById('milSaveBtn').disabled = true;
+  try{
+    await persistirMilhas();
+    msg.style.color = 'var(--sage)';
+    msg.textContent = '✓ Programas salvos.';
+  }catch(e){
+    console.error('Não foi possível salvar as milhas:', e);
+    document.getElementById('milSaveBtn').disabled = false;
+    msg.style.color = 'var(--stamp)';
+    msg.textContent = 'Não foi possível salvar. Tente de novo.';
+  }
+  setTimeout(()=>{ msg.textContent=''; }, 3000);
+}
+
+function assinarMilhas(){
+  return new Promise(resolve=>{
+    let primeira = true;
+    db.collection('caderno').doc('milhas').onSnapshot(async snap=>{
+      if(snap.exists){
+        if(!milhasSujo){
+          milhas = normalizarMilhas(snap.data());
+          renderMilhas();
+        }
+      } else if(primeira){
+        try{ await db.collection('caderno').doc('milhas').set(milhas); }
+        catch(e){ console.error('Não foi possível criar as milhas iniciais:', e); }
+        renderMilhas();
+      }
+      if(primeira){ primeira = false; resolve(); }
+    }, err=>{
+      console.error('Erro ao sincronizar as milhas:', err);
+      renderMilhas();
+      if(primeira){ primeira = false; resolve(); }
+    });
+  });
+}
+
 /* ---------- tabs ---------- */
 function showTab(name){
-  ['Lancar','Extrato','Resumo','Plano'].forEach(t=>{
+  ['Lancar','Extrato','Resumo','Plano','Milhas'].forEach(t=>{
     document.getElementById('tab'+t).classList.toggle('hidden', t.toLowerCase() !== name);
     document.getElementById('nav'+t).classList.toggle('active', t.toLowerCase() === name);
   });
@@ -1085,6 +1533,20 @@ function renderResumo(){
   orcEl.innerHTML =
     linha('Vs. gastos previstos no plano', restantePrevisto) +
     linha('Vs. renda do casal', restanteRenda);
+
+  /* No último dia do mês, lembra de mandar o resumo. O site é estático e não
+     tem como enviar sozinho — isto é o aviso, o envio é no botão. */
+  const hoje = new Date();
+  const ultimoDia = new Date(hoje.getFullYear(), hoje.getMonth()+1, 0).getDate();
+  const aviso = document.getElementById('avisoFimDoMes');
+  const olhandoMesAtual = monthKey(resumoCursor) === monthKey(hoje);
+  if(hoje.getDate() === ultimoDia && olhandoMesAtual){
+    aviso.className = 'plan-warn';
+    aviso.style.marginBottom = '10px';
+    aviso.textContent = `Hoje é o último dia de ${monthLabel(hoje)} — bom momento de mandar o resumo.`;
+  } else {
+    aviso.className = 'hidden';
+  }
 
   document.getElementById('budgetNote').textContent =
     `Referência: renda do casal ${fmt(renda)}/mês e gastos previstos ${fmt(previsto)}/mês ` +
