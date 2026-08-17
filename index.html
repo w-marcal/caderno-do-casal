@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Caderno do Casal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+<style>
+  :root{
+    --paper:#F1EEE0;
+    --paper-card:#FBFAF3;
+    --ink:#1F3A3D;
+    --ink-soft:#4A6461;
+    --line:#D7D0B8;
+    --stamp:#B8472F;
+    --gold:#C08A2E;
+    --sage:#4B7A5B;
+    --sage-bg:#E7EFE5;
+    --stamp-bg:#F5E4DD;
+    --radius:14px;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  body{
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:'Inter',sans-serif;
+    min-height:100vh;
+    padding-bottom:84px;
+  }
+  .wrap{max-width:480px; margin:0 auto; padding:0 16px;}
+
+  /* ---- header / passbook cover ---- */
+  header.cover{
+    background:var(--ink);
+    color:var(--paper-card);
+    padding:28px 20px 22px;
+    position:relative;
+    overflow:hidden;
+    border-bottom:6px double var(--gold);
+  }
+  header.cover::after{
+    content:"";
+    position:absolute; left:0; right:0; bottom:-1px; height:10px;
+    background-image: radial-gradient(circle, var(--paper) 3px, transparent 3.5px);
+    background-size: 16px 16px;
+    background-position: 8px -5px;
+  }
+  .cover-eyebrow{
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px; letter-spacing:.14em; text-transform:uppercase;
+    opacity:.65; margin-bottom:6px;
+  }
+  .cover-title{
+    font-family:'Fraunces',serif; font-weight:600; font-size:28px; line-height:1.1;
+    margin:0;
+  }
+  .cover-sub{font-size:13px; opacity:.75; margin-top:6px;}
+
+  /* ---- lock screen ---- */
+  .lock{ max-width:420px; margin:60px auto; padding:0 20px; text-align:center;}
+  .lock-card{
+    background:var(--paper-card); border:1px solid var(--line); border-radius:var(--radius);
+    padding:28px 22px; box-shadow:0 2px 0 var(--line);
+  }
+  .lock h2{font-family:'Fraunces',serif; font-size:22px; margin:6px 0 4px;}
+  .lock p{font-size:13.5px; color:var(--ink-soft); line-height:1.5;}
+  .pin-input{
+    width:100%; text-align:center; font-family:'JetBrains Mono',monospace;
+    font-size:26px; letter-spacing:.5em; padding:14px 10px 14px 16px;
+    border:1.5px solid var(--line); border-radius:10px; margin:16px 0 10px;
+    background:#fff; color:var(--ink);
+  }
+  .pin-input:focus{outline:none; border-color:var(--gold);}
+
+  /* ---- buttons ---- */
+  button{font-family:'Inter',sans-serif; cursor:pointer;}
+  .btn-primary{
+    width:100%; background:var(--ink); color:var(--paper-card); border:none;
+    padding:13px; border-radius:10px; font-size:15px; font-weight:600;
+    transition:opacity .15s;
+  }
+  .btn-primary:active{opacity:.85;}
+  .btn-ghost{
+    background:none; border:1px solid var(--line); color:var(--ink-soft);
+    padding:8px 14px; border-radius:8px; font-size:12.5px; margin-top:10px;
+  }
+  .err{color:var(--stamp); font-size:12.5px; margin-top:6px; min-height:16px;}
+
+  /* ---- tabs / nav ---- */
+  nav.tabbar{
+    position:fixed; bottom:0; left:0; right:0; background:var(--paper-card);
+    border-top:1px solid var(--line); display:flex; z-index:20;
+    box-shadow:0 -2px 8px rgba(0,0,0,.05);
+  }
+  nav.tabbar button{
+    flex:1; background:none; border:none; padding:12px 4px 10px; text-align:center;
+    color:var(--ink-soft); font-size:11px; font-weight:600; letter-spacing:.02em;
+  }
+  nav.tabbar button .ico{display:block; font-size:18px; margin-bottom:2px;}
+  nav.tabbar button.active{color:var(--stamp);}
+
+  main{padding-top:18px;}
+  .hidden{display:none !important;}
+
+  /* ---- cards / sections ---- */
+  .card{
+    background:var(--paper-card); border:1px solid var(--line); border-radius:var(--radius);
+    padding:18px; margin-bottom:14px;
+  }
+  .section-label{
+    font-family:'JetBrains Mono',monospace; font-size:11px; text-transform:uppercase;
+    letter-spacing:.1em; color:var(--ink-soft); margin-bottom:10px;
+  }
+
+  /* who toggle */
+  .who-toggle{display:flex; gap:8px; margin-bottom:14px;}
+  .who-btn{
+    flex:1; padding:10px; border-radius:10px; border:1.5px solid var(--line);
+    background:#fff; font-weight:600; font-size:14px; color:var(--ink-soft);
+  }
+  .who-btn.sel{background:var(--ink); color:var(--paper-card); border-color:var(--ink);}
+
+  /* form */
+  label{display:block; font-size:12px; font-weight:600; color:var(--ink-soft); margin:12px 0 5px;}
+  label:first-of-type{margin-top:0;}
+  input[type=text], input[type=number], input[type=date], select{
+    width:100%; padding:11px 12px; border:1.5px solid var(--line); border-radius:9px;
+    font-size:15px; background:#fff; color:var(--ink); font-family:'Inter',sans-serif;
+  }
+  input:focus, select:focus{outline:none; border-color:var(--gold);}
+  .valor-row{display:flex; align-items:center; border:1.5px solid var(--line); border-radius:9px; background:#fff;}
+  .valor-row span{padding:0 0 0 12px; font-family:'JetBrains Mono',monospace; color:var(--ink-soft); font-size:15px;}
+  .valor-row input{border:none; font-family:'JetBrains Mono',monospace; font-size:18px; font-weight:600;}
+  .cat-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-top:2px;}
+  .cat-chip{
+    padding:9px 2px; border-radius:9px; border:1.5px solid var(--line); background:#fff;
+    font-size:11px; text-align:center; color:var(--ink-soft); font-weight:600; line-height:1.2;
+  }
+  .cat-chip .em{display:block; font-size:16px; margin-bottom:2px;}
+  .cat-chip.sel{border-color:var(--stamp); background:var(--stamp-bg); color:var(--stamp);}
+
+  .stamp-btn{
+    margin-top:18px; width:100%; background:var(--stamp); color:#fff; border:none;
+    padding:14px; border-radius:10px; font-weight:700; font-size:15px; letter-spacing:.02em;
+  }
+  .stamp-btn:active{transform:scale(.98);}
+  .save-msg{
+    text-align:center; font-size:12.5px; color:var(--sage); font-weight:600; margin-top:8px; min-height:16px;
+  }
+
+  /* extrato */
+  .month-nav{display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;}
+  .month-nav button{background:none; border:1px solid var(--line); border-radius:8px; width:34px; height:34px; font-size:16px; color:var(--ink);}
+  .month-nav .m-label{font-family:'Fraunces',serif; font-weight:600; font-size:17px; text-transform:capitalize;}
+
+  .ledger-row{
+    display:flex; align-items:center; gap:10px; padding:11px 0; border-bottom:1px dashed var(--line);
+  }
+  .ledger-row:last-child{border-bottom:none;}
+  .led-cat{font-size:19px; width:26px; text-align:center;}
+  .led-mid{flex:1; min-width:0;}
+  .led-desc{font-size:14px; font-weight:600; color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .led-meta{font-size:11.5px; color:var(--ink-soft); margin-top:1px;}
+  .led-val{font-family:'JetBrains Mono',monospace; font-weight:600; font-size:14.5px; color:var(--ink); white-space:nowrap;}
+  .led-del{background:none; border:none; color:var(--line); font-size:16px; padding:4px 0 4px 8px;}
+  .led-del:active{color:var(--stamp);}
+  .empty-state{text-align:center; padding:30px 10px; color:var(--ink-soft); font-size:13.5px;}
+
+  /* resumo */
+  .big-total{
+    font-family:'Fraunces',serif; font-size:34px; font-weight:600; text-align:center; margin:4px 0 2px;
+  }
+  .big-total-label{text-align:center; font-size:11.5px; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.08em;}
+  .bal-good{color:var(--sage);}
+  .bal-bad{color:var(--stamp);}
+  .split-row{display:flex; gap:10px; margin-top:14px;}
+  .split-card{flex:1; background:#fff; border:1px solid var(--line); border-radius:10px; padding:12px; text-align:center;}
+  .split-card .who{font-size:12px; font-weight:700; color:var(--ink-soft);}
+  .split-card .amt{font-family:'JetBrains Mono',monospace; font-weight:600; font-size:16px; margin-top:3px;}
+
+  .bar-row{margin-bottom:10px;}
+  .bar-top{display:flex; justify-content:space-between; font-size:12.5px; margin-bottom:4px;}
+  .bar-top .cat-name{font-weight:600; color:var(--ink);}
+  .bar-top .cat-val{font-family:'JetBrains Mono',monospace; color:var(--ink-soft);}
+  .bar-track{height:7px; background:var(--line); border-radius:5px; overflow:hidden;}
+  .bar-fill{height:100%; background:var(--gold); border-radius:5px;}
+
+  .budget-note{font-size:12px; color:var(--ink-soft); line-height:1.5; margin-top:12px; padding-top:12px; border-top:1px dashed var(--line);}
+
+  .share-hint{
+    font-size:11.5px; color:var(--ink-soft); text-align:center; line-height:1.5; margin:14px 0 4px;
+  }
+</style>
+</head>
+<body>
+
+<div id="lockScreen" class="lock">
+  <div class="lock-card">
+    <div class="cover-eyebrow" style="color:var(--stamp)">Caderno do Casal</div>
+    <h2 id="lockTitle">Entrar</h2>
+    <p id="lockDesc">Digite a senha combinada com a Layla.</p>
+    <input id="pinInput" class="pin-input" type="text" inputmode="numeric" maxlength="6" placeholder="••••">
+    <div id="lockErr" class="err"></div>
+    <button class="btn-primary" id="lockBtn">Entrar</button>
+  </div>
+  <p class="share-hint">Este caderno é compartilhado: quem tiver o link e a senha vê e edita os mesmos lançamentos. Não é uma segurança de nível bancário — use uma senha simples só para vocês dois.</p>
+</div>
+
+<div id="app" class="hidden">
+  <header class="cover">
+    <div class="cover-eyebrow">Caderno do Casal · Felipe & Layla</div>
+    <h1 class="cover-title">Gastos do mês</h1>
+    <div class="cover-sub" id="headerSub">carregando…</div>
+  </header>
+
+  <div class="wrap">
+    <main>
+
+      <!-- LANÇAR -->
+      <section id="tabLancar">
+        <div class="card">
+          <div class="section-label">Quem está lançando</div>
+          <div class="who-toggle">
+            <button class="who-btn sel" id="whoFelipe" onclick="setWho('Felipe')">Felipe</button>
+            <button class="who-btn" id="whoLayla" onclick="setWho('Layla')">Layla</button>
+          </div>
+
+          <label>Valor</label>
+          <div class="valor-row">
+            <span>R$</span>
+            <input type="number" id="fValor" placeholder="0,00" inputmode="decimal" step="0.01">
+          </div>
+
+          <label>Categoria</label>
+          <div class="cat-grid" id="catGrid"></div>
+
+          <label>Descrição (opcional)</label>
+          <input type="text" id="fDesc" placeholder="ex: feira, hidratante, uber">
+
+          <label>Data</label>
+          <input type="date" id="fData">
+
+          <button class="stamp-btn" id="saveBtn" onclick="salvarLancamento()">Carimbar lançamento</button>
+          <div class="save-msg" id="saveMsg"></div>
+        </div>
+      </section>
+
+      <!-- EXTRATO -->
+      <section id="tabExtrato" class="hidden">
+        <div class="card">
+          <div class="month-nav">
+            <button onclick="mudarMes(-1)">‹</button>
+            <div class="m-label" id="extMesLabel">—</div>
+            <button onclick="mudarMes(1)">›</button>
+          </div>
+          <div id="extratoList"></div>
+        </div>
+      </section>
+
+      <!-- RESUMO -->
+      <section id="tabResumo" class="hidden">
+        <div class="card">
+          <div class="month-nav">
+            <button onclick="mudarMesResumo(-1)">‹</button>
+            <div class="m-label" id="resMesLabel">—</div>
+            <button onclick="mudarMesResumo(1)">›</button>
+          </div>
+          <div class="big-total-label">Total gasto no mês</div>
+          <div class="big-total" id="resTotal">R$ 0,00</div>
+          <div class="split-row">
+            <div class="split-card"><div class="who">Felipe</div><div class="amt" id="resFelipe">R$ 0</div></div>
+            <div class="split-card"><div class="who">Layla</div><div class="amt" id="resLayla">R$ 0</div></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="section-label">Por categoria</div>
+          <div id="resCategorias"></div>
+        </div>
+
+        <div class="card">
+          <div class="section-label">Comparado ao orçado</div>
+          <div id="resOrcado"></div>
+          <div class="budget-note">Referência: renda certa combinada ~R$ 4.316/mês e gastos fixos ~R$ 1.375/mês, do orçamento que vocês montaram. Ajustem esses números direto no código se mudarem.</div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <nav class="tabbar">
+    <button class="active" id="navLancar" onclick="showTab('lancar')"><span class="ico">✎</span>Lançar</button>
+    <button id="navExtrato" onclick="showTab('extrato')"><span class="ico">📜</span>Extrato</button>
+    <button id="navResumo" onclick="showTab('resumo')"><span class="ico">◆</span>Resumo</button>
+  </nav>
+</div>
+
+<script>
+/* =====================================================================
+   CONFIGURAÇÃO DO FIREBASE
+   Cole aqui embaixo o bloco "firebaseConfig" que o Firebase te deu no
+   passo "Registrar o app Web". Troque os valores de exemplo pelos seus.
+   ===================================================================== */
+const firebaseConfig = {
+  apiKey: "COLE_AQUI",
+  authDomain: "COLE_AQUI.firebaseapp.com",
+  projectId: "COLE_AQUI",
+  storageBucket: "COLE_AQUI.appspot.com",
+  messagingSenderId: "COLE_AQUI",
+  appId: "COLE_AQUI"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const auth = firebase.auth();
+
+/* Garante que o app está autenticado (login anônimo) antes de ler/gravar */
+function ensureAuth(){
+  return new Promise((resolve, reject)=>{
+    auth.onAuthStateChanged(user=>{
+      if(user) resolve(user);
+    });
+    auth.signInAnonymously().catch(reject);
+  });
+}
+
+/* Shim que imita window.storage.get/set, agora usando Firestore.
+   Cada "key" vira um documento dentro da coleção "caderno". */
+async function dbGet(key){
+  await ensureAuth();
+  const snap = await db.collection('caderno').doc(key).get();
+  if(!snap.exists) return null;
+  return { value: snap.data().value };
+}
+async function dbSet(key, value){
+  await ensureAuth();
+  await db.collection('caderno').doc(key).set({ value, atualizadoEm: new Date().toISOString() });
+  return { value };
+}
+
+const CATEGORIES = [
+  {id:'viagem', em:'✈️', label:'Viagem'},
+  {id:'passagem', em:'🎫', label:'Passagem'},
+  {id:'hotel', em:'🏨', label:'Hotel'},
+  {id:'restaurantes', em:'🍽️', label:'Restaurantes'},
+  {id:'uber', em:'🚕', label:'Uber'},
+  {id:'transporte', em:'🚗', label:'Transporte'},
+  {id:'mercado', em:'🛒', label:'Mercado'},
+  {id:'hortifruti', em:'🥦', label:'HortiFruti'},
+  {id:'casa', em:'🏠', label:'Casa/Fixo'},
+  {id:'estetica', em:'💅', label:'Estética'},
+  {id:'saude', em:'⚕️', label:'Saúde'},
+  {id:'farmacia', em:'💊', label:'Farmácia'},
+  {id:'compras', em:'🛍️', label:'Compras'},
+  {id:'lazer', em:'🎈', label:'Lazer'},
+  {id:'presentes', em:'🎁', label:'Presentes'},
+  {id:'contrib', em:'🤍', label:'Contrib.'},
+  {id:'outros', em:'✦', label:'Outros'},
+];
+const BUDGET_RENDA = 4316.67;
+const BUDGET_FIXOS = 1375.00;
+
+let selectedCat = 'viagem';
+let selectedWho = 'Felipe';
+let entries = [];
+let extratoCursor = new Date();
+let resumoCursor = new Date();
+
+function fmt(v){
+  return v.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+}
+function monthKey(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
+function monthLabel(d){
+  return d.toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+}
+
+/* ---------- lock ---------- */
+async function initLock(){
+  try{
+    const cfg = await dbGet('config');
+    if(cfg && cfg.value){
+      document.getElementById('lockTitle').textContent = 'Entrar';
+      document.getElementById('lockDesc').textContent = 'Digite a senha combinada com a Layla.';
+    } else {
+      document.getElementById('lockTitle').textContent = 'Criar senha';
+      document.getElementById('lockDesc').textContent = 'Primeiro acesso: escolham uma senha de 4 a 6 dígitos para os dois usarem.';
+    }
+  }catch(e){
+    document.getElementById('lockTitle').textContent = 'Criar senha';
+    document.getElementById('lockDesc').textContent = 'Primeiro acesso: escolham uma senha de 4 a 6 dígitos para os dois usarem.';
+  }
+}
+document.getElementById('lockBtn').addEventListener('click', tryUnlock);
+document.getElementById('pinInput').addEventListener('keydown', e=>{ if(e.key==='Enter') tryUnlock(); });
+
+async function tryUnlock(){
+  const pin = document.getElementById('pinInput').value.trim();
+  const errEl = document.getElementById('lockErr');
+  if(pin.length < 4){ errEl.textContent = 'Use pelo menos 4 dígitos.'; return; }
+  try{
+    let cfg;
+    try{ cfg = await dbGet('config'); }catch(e){ cfg = null; }
+    if(cfg && cfg.value){
+      const saved = JSON.parse(cfg.value);
+      if(saved.pin === pin){ unlockApp(); }
+      else{ errEl.textContent = 'Senha incorreta.'; }
+    } else {
+      await dbSet('config', JSON.stringify({pin, criadoEm: new Date().toISOString()}));
+      unlockApp();
+    }
+  }catch(e){
+    errEl.textContent = 'Erro ao acessar o caderno. Tente novamente.';
+  }
+}
+
+function unlockApp(){
+  document.getElementById('lockScreen').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+  boot();
+}
+
+/* ---------- boot ---------- */
+async function boot(){
+  buildCatGrid();
+  document.getElementById('fData').valueAsDate = new Date();
+  await loadEntries();
+  renderExtrato();
+  renderResumo();
+  document.getElementById('headerSub').textContent = entries.length + ' lançamento(s) registrados no total';
+}
+
+function buildCatGrid(){
+  const grid = document.getElementById('catGrid');
+  grid.innerHTML = '';
+  CATEGORIES.forEach(c=>{
+    const btn = document.createElement('button');
+    btn.className = 'cat-chip' + (c.id===selectedCat ? ' sel':'');
+    btn.innerHTML = `<span class="em">${c.em}</span>${c.label}`;
+    btn.onclick = ()=>{ selectedCat = c.id; buildCatGrid(); };
+    grid.appendChild(btn);
+  });
+}
+
+function setWho(w){
+  selectedWho = w;
+  document.getElementById('whoFelipe').classList.toggle('sel', w==='Felipe');
+  document.getElementById('whoLayla').classList.toggle('sel', w==='Layla');
+}
+
+/* ---------- storage ---------- */
+async function loadEntries(){
+  try{
+    const res = await dbGet('entries');
+    entries = res && res.value ? JSON.parse(res.value) : [];
+  }catch(e){
+    entries = [];
+  }
+}
+async function persistEntries(){
+  await dbSet('entries', JSON.stringify(entries));
+}
+
+async function salvarLancamento(){
+  const valorRaw = document.getElementById('fValor').value;
+  const valor = parseFloat(valorRaw);
+  const msg = document.getElementById('saveMsg');
+  if(!valorRaw || isNaN(valor) || valor <= 0){
+    msg.style.color = 'var(--stamp)';
+    msg.textContent = 'Digite um valor válido.';
+    return;
+  }
+  const desc = document.getElementById('fDesc').value.trim();
+  const dataStr = document.getElementById('fData').value || new Date().toISOString().slice(0,10);
+  const entry = {
+    id: Date.now()+'-'+Math.random().toString(36).slice(2,7),
+    valor, categoria: selectedCat, quem: selectedWho,
+    desc: desc || CATEGORIES.find(c=>c.id===selectedCat).label,
+    data: dataStr
+  };
+  document.getElementById('saveBtn').disabled = true;
+  try{
+    entries.push(entry);
+    await persistEntries();
+    msg.style.color = 'var(--sage)';
+    msg.textContent = '✓ Lançamento carimbado no caderno.';
+    document.getElementById('fValor').value = '';
+    document.getElementById('fDesc').value = '';
+    renderExtrato(); renderResumo();
+    document.getElementById('headerSub').textContent = entries.length + ' lançamento(s) registrados no total';
+  }catch(e){
+    entries.pop();
+    msg.style.color = 'var(--stamp)';
+    msg.textContent = 'Não foi possível salvar. Tente de novo.';
+  }
+  document.getElementById('saveBtn').disabled = false;
+  setTimeout(()=>{ msg.textContent=''; }, 2500);
+}
+
+async function excluirLancamento(id){
+  entries = entries.filter(e=>e.id !== id);
+  await persistEntries();
+  renderExtrato(); renderResumo();
+}
+
+/* ---------- tabs ---------- */
+function showTab(name){
+  ['Lancar','Extrato','Resumo'].forEach(t=>{
+    document.getElementById('tab'+t).classList.toggle('hidden', t.toLowerCase() !== name);
+    document.getElementById('nav'+t).classList.toggle('active', t.toLowerCase() === name);
+  });
+}
+
+/* ---------- extrato ---------- */
+function mudarMes(delta){
+  extratoCursor.setMonth(extratoCursor.getMonth()+delta);
+  renderExtrato();
+}
+function renderExtrato(){
+  document.getElementById('extMesLabel').textContent = monthLabel(extratoCursor);
+  const key = monthKey(extratoCursor);
+  const list = entries.filter(e=>e.data.slice(0,7)===key).sort((a,b)=>b.data.localeCompare(a.data) || b.id.localeCompare(a.id));
+  const el = document.getElementById('extratoList');
+  if(list.length===0){
+    el.innerHTML = '<div class="empty-state">Nenhum lançamento neste mês ainda.</div>';
+    return;
+  }
+  el.innerHTML = list.map(e=>{
+    const cat = CATEGORIES.find(c=>c.id===e.categoria) || {em:'✦'};
+    const [y,m,d] = e.data.split('-');
+    return `<div class="ledger-row">
+      <div class="led-cat">${cat.em}</div>
+      <div class="led-mid">
+        <div class="led-desc">${escapeHtml(e.desc)}</div>
+        <div class="led-meta">${d}/${m} · ${e.quem}</div>
+      </div>
+      <div class="led-val">${fmt(e.valor)}</div>
+      <button class="led-del" onclick="excluirLancamento('${e.id}')">✕</button>
+    </div>`;
+  }).join('');
+}
+function escapeHtml(s){
+  return s.replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+
+/* ---------- resumo ---------- */
+function mudarMesResumo(delta){
+  resumoCursor.setMonth(resumoCursor.getMonth()+delta);
+  renderResumo();
+}
+function renderResumo(){
+  document.getElementById('resMesLabel').textContent = monthLabel(resumoCursor);
+  const key = monthKey(resumoCursor);
+  const list = entries.filter(e=>e.data.slice(0,7)===key);
+  const total = list.reduce((s,e)=>s+e.valor,0);
+  document.getElementById('resTotal').textContent = fmt(total);
+
+  const porQuem = {Felipe:0, Layla:0};
+  list.forEach(e=>{ porQuem[e.quem] = (porQuem[e.quem]||0) + e.valor; });
+  document.getElementById('resFelipe').textContent = fmt(porQuem.Felipe||0);
+  document.getElementById('resLayla').textContent = fmt(porQuem.Layla||0);
+
+  const porCat = {};
+  list.forEach(e=>{ porCat[e.categoria] = (porCat[e.categoria]||0) + e.valor; });
+  const maxCat = Math.max(1, ...Object.values(porCat));
+  const catEl = document.getElementById('resCategorias');
+  const catsUsed = CATEGORIES.filter(c=>porCat[c.id]);
+  if(catsUsed.length===0){
+    catEl.innerHTML = '<div class="empty-state">Sem dados neste mês.</div>';
+  } else {
+    catEl.innerHTML = catsUsed.sort((a,b)=>(porCat[b.id]||0)-(porCat[a.id]||0)).map(c=>{
+      const v = porCat[c.id]||0;
+      const pct = Math.round((v/maxCat)*100);
+      return `<div class="bar-row">
+        <div class="bar-top"><span class="cat-name">${c.em} ${c.label}</span><span class="cat-val">${fmt(v)}</span></div>
+        <div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div>
+      </div>`;
+    }).join('');
+  }
+
+  const orcEl = document.getElementById('resOrcado');
+  const restanteFixos = BUDGET_FIXOS - total;
+  const restanteRenda = BUDGET_RENDA - total;
+  orcEl.innerHTML = `
+    <div class="bar-row">
+      <div class="bar-top"><span class="cat-name">Vs. gastos fixos planejados</span><span class="cat-val ${restanteFixos>=0?'bal-good':'bal-bad'}">${fmt(restanteFixos)}</span></div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-top"><span class="cat-name">Vs. renda certa do mês</span><span class="cat-val ${restanteRenda>=0?'bal-good':'bal-bad'}">${fmt(restanteRenda)}</span></div>
+    </div>`;
+}
+
+initLock();
+</script>
+</body>
+</html>
