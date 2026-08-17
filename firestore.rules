@@ -1,28 +1,50 @@
 rules_version = '2';
 
 // Regras do projeto "caderno-do-casal".
-// Onde colar: console.firebase.google.com > Firestore Database > aba "Regras"
-// > substituir tudo por este conteúdo > Publicar.
 //
-// ATENÇÃO: isto libera leitura e escrita para QUALQUER pessoa que abra o app,
-// porque o login é anônimo — o mesmo nível de proteção que o caderno já tinha.
-// A senha da tela de entrada é só uma trava visual, não protege os dados.
-// Fechar isso de verdade exige login com e-mail/senha; podemos fazer depois.
+// Onde colar: console.firebase.google.com > Firestore Database > aba "Regras"
+// > substituir tudo por este conteudo > Publicar.
+//
+// ANTES DE PUBLICAR, troque os dois e-mails abaixo pelos e-mails reais das
+// contas criadas em Authentication > Users. Faca essa troca DIRETO NO CONSOLE
+// e deixe este arquivo com os exemplos: o repositorio e publico, e e-mail
+// commitado aqui fica indexado e permanente no historico do git.
+//
+// Antes disso, no console:
+//   1. Authentication > Sign-in method > ativar "E-mail/senha"
+//   2. Authentication > Sign-in method > DESATIVAR "Anonimo"
+//   3. Authentication > Users > criar as duas contas (Felipe e Layla)
+//   4. Authentication > Settings > User actions > desmarcar
+//      "Enable create (sign-up)", para ninguem se cadastrar sozinho
+//
+// O passo 4 importa: a chave do Firebase e publica por natureza (esta dentro
+// do index.html, que qualquer um baixa). Sem ele, alguem poderia criar uma
+// conta no projeto. A lista de e-mails abaixo ja barra esse caso de qualquer
+// forma — os dois juntos e cinto e suspensorio.
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Documento de configuração (senha da tela de entrada).
+    function doCasal() {
+      return request.auth != null
+        && request.auth.token.email != null
+        && request.auth.token.email.lower() in [
+             'troque-pelo-email-do-felipe@exemplo.com',
+             'troque-pelo-email-da-layla@exemplo.com'
+           ];
+    }
+
+    // Plano/orcamento, milhas e demais documentos de configuracao.
     match /caderno/{doc} {
-      allow read, write: if request.auth != null;
+      allow read, write: if doCasal();
     }
 
-    // Um documento por lançamento — permite os dois lançarem ao mesmo tempo.
+    // Um documento por lancamento.
     match /lancamentos/{doc} {
-      allow read, write: if request.auth != null;
+      allow read, write: if doCasal();
     }
 
-    // Nada além disso.
+    // Nada alem disso.
     match /{document=**} {
       allow read, write: if false;
     }

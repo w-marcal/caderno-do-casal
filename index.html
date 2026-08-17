@@ -67,13 +67,8 @@
   }
   .lock h2{font-family:'Fraunces',serif; font-size:22px; margin:6px 0 4px;}
   .lock p{font-size:13.5px; color:var(--ink-soft); line-height:1.5;}
-  .pin-input{
-    width:100%; text-align:center; font-family:'JetBrains Mono',monospace;
-    font-size:26px; letter-spacing:.5em; padding:14px 10px 14px 16px;
-    border:1.5px solid var(--line); border-radius:10px; margin:16px 0 10px;
-    background:#fff; color:var(--ink);
-  }
-  .pin-input:focus{outline:none; border-color:var(--gold);}
+  .lock label{margin-top:14px;}
+  .lock .btn-primary{margin-top:16px;}
 
   /* ---- buttons ---- */
   button{font-family:'Inter',sans-serif; cursor:pointer;}
@@ -126,7 +121,7 @@
   /* form */
   label{display:block; font-size:12px; font-weight:600; color:var(--ink-soft); margin:12px 0 5px;}
   label:first-of-type{margin-top:0;}
-  input[type=text], input[type=number], input[type=date], select{
+  input[type=text], input[type=number], input[type=date], input[type=email], input[type=password], select{
     width:100%; padding:11px 12px; border:1.5px solid var(--line); border-radius:9px;
     font-size:15px; background:#fff; color:var(--ink); font-family:'Inter',sans-serif;
   }
@@ -278,16 +273,28 @@
 </head>
 <body>
 
-<div id="lockScreen" class="lock">
+<div id="lockScreen" class="lock hidden">
   <div class="lock-card">
     <div class="cover-eyebrow" style="color:var(--stamp)">Caderno do Casal</div>
-    <h2 id="lockTitle">Entrar</h2>
-    <p id="lockDesc">Digite a senha combinada com a Layla.</p>
-    <input id="pinInput" class="pin-input" type="text" inputmode="numeric" maxlength="6" placeholder="••••">
+    <h2>Entrar</h2>
+    <p>Use a conta que vocês criaram para o caderno.</p>
+
+    <label style="text-align:left">E-mail</label>
+    <input id="loginEmail" type="email" inputmode="email" autocomplete="username" placeholder="voce@exemplo.com">
+
+    <label style="text-align:left">Senha</label>
+    <input id="loginSenha" type="password" autocomplete="current-password" placeholder="••••••••">
+
     <div id="lockErr" class="err"></div>
-    <button class="btn-primary" id="lockBtn">Entrar</button>
+    <button class="btn-primary" id="lockBtn" onclick="entrar()">Entrar</button>
+    <button class="btn-ghost" style="width:100%" onclick="recuperarSenha()">Esqueci a senha</button>
+    <div class="save-msg" id="lockMsg"></div>
   </div>
-  <p class="share-hint">Este caderno é compartilhado: quem tiver o link e a senha vê e edita os mesmos lançamentos. Não é uma segurança de nível bancário — use uma senha simples só para vocês dois.</p>
+  <p class="share-hint">Só as contas cadastradas por vocês conseguem abrir o caderno. Quem tiver o link mas não tiver conta não vê nada.</p>
+</div>
+
+<div id="carregando" class="lock">
+  <div class="lock-card"><p style="margin:0">Abrindo o caderno…</p></div>
 </div>
 
 <div id="app" class="hidden">
@@ -449,6 +456,12 @@
           <div class="plan-hint" style="margin:8px 0 0" id="planoAtualizado"></div>
         </div>
 
+        <div class="card">
+          <div class="section-label">Conta</div>
+          <div class="plan-hint" id="contaEmail" style="margin-bottom:10px"></div>
+          <button class="btn-ghost" style="width:100%; margin:0" onclick="sair()">Sair deste aparelho</button>
+        </div>
+
         <div class="save-bar">
           <button id="planoSaveBtn" onclick="salvarPlano()" disabled>Tudo salvo</button>
         </div>
@@ -542,43 +555,97 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 const auth = firebase.auth();
 
-/* Garante que o app está autenticado (login anônimo) antes de ler/gravar.
-   A promessa é reaproveitada: o listener é cancelado assim que autentica. */
-let authPromise = null;
+/* Login por e-mail e senha. Só as contas que vocês criarem no Firebase
+   conseguem ler ou gravar — as regras do Firestore checam o e-mail.
+   A sessão fica guardada no aparelho, então não precisa entrar toda vez. */
+let usuarioAtual = null;
+let appIniciado = false;
+
 function ensureAuth(){
-  if(authPromise) return authPromise;
-  authPromise = new Promise((resolve, reject)=>{
-    let unsub = null, done = false;
-    const finish = (fn, arg)=>{ done = true; if(unsub) unsub(); fn(arg); };
-    unsub = auth.onAuthStateChanged(
-      user=>{ if(user && !done) finish(resolve, user); },
-      err=>{ if(!done) finish(reject, err); }
-    );
-    if(done && unsub) unsub();
-    auth.signInAnonymously().catch(err=>{ if(!done) finish(reject, err); });
-  });
-  authPromise.catch(()=>{ authPromise = null; });
-  return authPromise;
+  return usuarioAtual ? Promise.resolve(usuarioAtual) : Promise.reject(new Error('sem sessão'));
 }
+
+auth.onAuthStateChanged(user=>{
+  /* Sessão anônima antiga (de antes do login por e-mail) não vale mais:
+     derruba e volta para a tela de entrada. Não confiar só no provedor
+     anônimo estar desligado no console — o cliente também barra. */
+  if(user && !user.email){
+    auth.signOut();
+    return;
+  }
+  usuarioAtual = user || null;
+  document.getElementById('carregando').classList.add('hidden');
+  if(user){
+    document.getElementById('lockScreen').classList.add('hidden');
+    document.getElementById('app').classList.remove('hidden');
+    document.getElementById('loginSenha').value = '';
+    if(!appIniciado){ appIniciado = true; boot(); }
+  } else {
+    document.getElementById('app').classList.add('hidden');
+    document.getElementById('lockScreen').classList.remove('hidden');
+  }
+});
+
+function mensagemDeErro(e){
+  const cod = e && e.code || '';
+  if(cod === 'auth/invalid-email') return 'E-mail inválido.';
+  if(cod === 'auth/user-disabled') return 'Esta conta está desativada.';
+  if(cod === 'auth/too-many-requests') return 'Muitas tentativas. Espere alguns minutos.';
+  if(cod === 'auth/network-request-failed') return 'Sem conexão com a internet.';
+  if(cod === 'auth/operation-not-allowed') return 'Login por e-mail não está ligado no Firebase.';
+  /* invalid-credential, wrong-password e user-not-found viram a mesma
+     mensagem de propósito: não entregar se o e-mail existe ou não. */
+  return 'E-mail ou senha incorretos.';
+}
+
+async function entrar(){
+  const email = document.getElementById('loginEmail').value.trim();
+  const senha = document.getElementById('loginSenha').value;
+  const err = document.getElementById('lockErr');
+  err.textContent = '';
+  if(!email || !senha){ err.textContent = 'Preencha o e-mail e a senha.'; return; }
+  const btn = document.getElementById('lockBtn');
+  btn.disabled = true;
+  btn.textContent = 'Entrando…';
+  try{
+    await auth.signInWithEmailAndPassword(email, senha);
+  }catch(e){
+    console.error('Falha no login:', e.code);
+    err.textContent = mensagemDeErro(e);
+  }
+  btn.disabled = false;
+  btn.textContent = 'Entrar';
+}
+
+async function recuperarSenha(){
+  const email = document.getElementById('loginEmail').value.trim();
+  const err = document.getElementById('lockErr');
+  const msg = document.getElementById('lockMsg');
+  err.textContent = ''; msg.textContent = '';
+  if(!email){ err.textContent = 'Escreva o e-mail primeiro.'; return; }
+  try{
+    await auth.sendPasswordResetEmail(email);
+    msg.style.color = 'var(--sage)';
+    msg.textContent = 'Se essa conta existir, o link de nova senha chegou no e-mail.';
+  }catch(e){
+    console.error(e.code);
+    err.textContent = mensagemDeErro(e);
+  }
+}
+
+async function sair(){
+  if(!confirm('Sair do caderno neste aparelho?')) return;
+  await auth.signOut();
+  location.reload();
+}
+
+document.getElementById('loginSenha').addEventListener('keydown', e=>{ if(e.key==='Enter') entrar(); });
+document.getElementById('loginEmail').addEventListener('keydown', e=>{ if(e.key==='Enter') entrar(); });
 
 /* Coleção onde cada lançamento é um documento próprio.
    Assim os dois podem lançar ao mesmo tempo sem um sobrescrever o outro. */
 const LANC = 'lancamentos';
 function lancRef(){ return db.collection(LANC); }
-
-/* Shim que imita window.storage.get/set, agora usando Firestore.
-   Usado só para o documento de configuração (senha). */
-async function dbGet(key){
-  await ensureAuth();
-  const snap = await db.collection('caderno').doc(key).get();
-  if(!snap.exists) return null;
-  return { value: snap.data().value };
-}
-async function dbSet(key, value){
-  await ensureAuth();
-  await db.collection('caderno').doc(key).set({ value, atualizadoEm: new Date().toISOString() });
-  return { value };
-}
 
 const CATEGORIES = [
   {id:'viagem', em:'✈️', label:'Viagem'},
@@ -680,51 +747,6 @@ function parseValor(raw){
 function monthKey(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
 function monthLabel(d){
   return d.toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
-}
-
-/* ---------- lock ---------- */
-async function initLock(){
-  try{
-    const cfg = await dbGet('config');
-    if(cfg && cfg.value){
-      document.getElementById('lockTitle').textContent = 'Entrar';
-      document.getElementById('lockDesc').textContent = 'Digite a senha combinada com a Layla.';
-    } else {
-      document.getElementById('lockTitle').textContent = 'Criar senha';
-      document.getElementById('lockDesc').textContent = 'Primeiro acesso: escolham uma senha de 4 a 6 dígitos para os dois usarem.';
-    }
-  }catch(e){
-    document.getElementById('lockTitle').textContent = 'Criar senha';
-    document.getElementById('lockDesc').textContent = 'Primeiro acesso: escolham uma senha de 4 a 6 dígitos para os dois usarem.';
-  }
-}
-document.getElementById('lockBtn').addEventListener('click', tryUnlock);
-document.getElementById('pinInput').addEventListener('keydown', e=>{ if(e.key==='Enter') tryUnlock(); });
-
-async function tryUnlock(){
-  const pin = document.getElementById('pinInput').value.trim();
-  const errEl = document.getElementById('lockErr');
-  if(pin.length < 4){ errEl.textContent = 'Use pelo menos 4 dígitos.'; return; }
-  try{
-    let cfg;
-    try{ cfg = await dbGet('config'); }catch(e){ cfg = null; }
-    if(cfg && cfg.value){
-      const saved = JSON.parse(cfg.value);
-      if(saved.pin === pin){ unlockApp(); }
-      else{ errEl.textContent = 'Senha incorreta.'; }
-    } else {
-      await dbSet('config', JSON.stringify({pin, criadoEm: new Date().toISOString()}));
-      unlockApp();
-    }
-  }catch(e){
-    errEl.textContent = 'Erro ao acessar o caderno. Tente novamente.';
-  }
-}
-
-function unlockApp(){
-  document.getElementById('lockScreen').classList.add('hidden');
-  document.getElementById('app').classList.remove('hidden');
-  boot();
 }
 
 /* ---------- boot ---------- */
@@ -929,6 +951,8 @@ function renderPlano(){
   document.getElementById('retroValor').value  = numParaInput(plano.retroativo.estimativaPorMes);
   document.getElementById('retroStatus').value = plano.retroativo.status;
   document.getElementById('planoObs').value    = plano.observacao;
+  document.getElementById('contaEmail').textContent =
+    usuarioAtual ? 'Conectado como ' + usuarioAtual.email : '';
 
   renderDestino();
   renderDerivados();
@@ -1620,7 +1644,6 @@ function renderResumo(){
   renderBotoesContatos();
 }
 
-initLock();
 </script>
 </body>
 </html>
