@@ -524,6 +524,43 @@
         <div class="save-msg" id="milSaveMsg"></div>
       </section>
 
+      <!-- INVESTIR -->
+      <section id="tabInvestir" class="hidden">
+        <div class="card">
+          <div class="section-label">Taxa de referência</div>
+          <div class="plan-hint">O CDI muda com a Selic — confira de vez em quando e atualize aqui, porque o cálculo todo depende dele.
+            <a href="https://investidor10.com.br/indices/cdi/" target="_blank" rel="noopener" style="color:var(--stamp)">investidor10</a> ·
+            <a href="https://statusinvest.com.br/indices/cdi" target="_blank" rel="noopener" style="color:var(--stamp)">statusinvest</a> ·
+            <a href="https://www.b3.com.br/pt_br/market-data-e-indices/servicos-de-dados/market-data/consultas/mercado-de-derivativos/indicadores/indicadores-financeiros/" target="_blank" rel="noopener" style="color:var(--stamp)">B3</a>
+          </div>
+          <div class="mil-field">
+            <div class="mil-lbl">CDI ao ano</div>
+            <div class="mil-box">
+              <input type="text" inputmode="decimal" id="cdiAnual" oninput="editarCdi(this.value)">
+              <span style="padding:0 9px 0 0">%</span>
+            </div>
+          </div>
+          <div class="plan-warn hidden" id="cdiAviso">Preencha o CDI para os valores aparecerem.</div>
+        </div>
+
+        <div class="card">
+          <div class="section-label">Aplicações</div>
+          <div id="investLista"></div>
+          <button class="plan-add" onclick="adicionarAplicacao()">+ adicionar CDB</button>
+        </div>
+
+        <div class="card">
+          <div class="section-label">Total</div>
+          <div class="derived" id="investTotais"></div>
+          <div class="budget-note" id="investNota"></div>
+        </div>
+
+        <div class="save-bar">
+          <button id="investSaveBtn" onclick="salvarInvestimentos()" disabled>Tudo salvo</button>
+        </div>
+        <div class="save-msg" id="investMsg"></div>
+      </section>
+
     </main>
   </div>
 
@@ -533,6 +570,7 @@
     <button id="navResumo" onclick="showTab('resumo')"><span class="ico">◆</span>Resumo</button>
     <button id="navPlano" onclick="showTab('plano')"><span class="ico">⚖</span>Plano</button>
     <button id="navMilhas" onclick="showTab('milhas')"><span class="ico">✈</span>Milhas</button>
+    <button id="navInvestir" onclick="showTab('investir')"><span class="ico">▲</span>Investir</button>
   </nav>
 </div>
 
@@ -760,7 +798,7 @@ async function boot(){
   }catch(e){
     console.error('Não foi possível migrar os lançamentos antigos:', e);
   }
-  await Promise.all([ assinarLancamentos(), assinarPlano(), assinarMilhas() ]);
+  await Promise.all([ assinarLancamentos(), assinarPlano(), assinarMilhas(), assinarInvestimentos() ]);
 }
 
 function buildCatGrid(){
@@ -1071,7 +1109,7 @@ async function salvarPlano(){
   const btn = document.getElementById('planoSaveBtn');
   const msg = document.getElementById('planoMsg');
   btn.disabled = true;
-  plano.atualizadoEm = new Date().toISOString().slice(0,10);
+  plano.atualizadoEm = hojeISO();
   try{
     await db.collection('caderno').doc('orcamento').set(plano);
     planoSujo = false;
@@ -1124,7 +1162,7 @@ async function salvarLancamento(){
     return;
   }
   const desc = document.getElementById('fDesc').value.trim();
-  const dataStr = document.getElementById('fData').value || new Date().toISOString().slice(0,10);
+  const dataStr = document.getElementById('fData').value || hojeISO();
   const id = Date.now()+'-'+Math.random().toString(36).slice(2,7);
   const entry = {
     valor, categoria: selectedCat, quem: selectedWho,
@@ -1444,7 +1482,7 @@ async function registrarMovimentoMilhas(){
     milheiro: milheiro,
     valor: qtd / 1000 * milheiro,
     obs: document.getElementById('milObs').value.trim(),
-    data: document.getElementById('milData').value || new Date().toISOString().slice(0,10),
+    data: document.getElementById('milData').value || hojeISO(),
     quem: selectedWho
   };
   /* Baixa do saldo do programa e guarda o movimento no mesmo documento. */
@@ -1488,7 +1526,7 @@ async function excluirMovimentoMilhas(id){
 }
 
 async function persistirMilhas(){
-  milhas.atualizadoEm = new Date().toISOString().slice(0,10);
+  milhas.atualizadoEm = hojeISO();
   await db.collection('caderno').doc('milhas').set(milhas);
   milhasSujo = false;
   const btn = document.getElementById('milSaveBtn');
@@ -1535,9 +1573,277 @@ function assinarMilhas(){
   });
 }
 
+/* ---------- investimentos (CDB indexado ao CDI) ---------- */
+
+/* CDI de partida conferido em statusinvest e investidor10 em 17/08/2026.
+   Fica aqui so como ponto de partida: muda com a Selic, entao o campo e
+   editavel e o valor salvo no Firestore sempre vence este padrao. */
+const INVEST_PADRAO = { cdiAnual: 14.711, atualizadoEm: '', aplicacoes: [] };
+let investimentos = JSON.parse(JSON.stringify(INVEST_PADRAO));
+let investSujo = false;
+
+function normalizarInvestimentos(v){
+  const base = JSON.parse(JSON.stringify(INVEST_PADRAO));
+  if(!v || typeof v !== 'object') return base;
+  return {
+    cdiAnual: Number(v.cdiAnual) || 0,
+    atualizadoEm: String(v.atualizadoEm || ''),
+    aplicacoes: Array.isArray(v.aplicacoes) ? v.aplicacoes.map(a=>({
+      id: String(a && a.id || (Date.now()+'-'+Math.random().toString(36).slice(2,7))),
+      nome: String(a && a.nome || ''),
+      valor: Number(a && a.valor) || 0,
+      data: String(a && a.data || ''),
+      pctCdi: Number(a && a.pctCdi) || 100,
+      dataResgate: String(a && a.dataResgate || '')
+    })) : []
+  };
+}
+
+/* IOF regressivo: incide so no resgate antes de 30 dias corridos, sobre o
+   rendimento. Percentual por dia corrido, do dia 1 ao 29. */
+const TABELA_IOF = [96,93,90,86,83,80,76,73,70,66,63,60,56,53,50,46,43,40,36,33,30,26,23,20,16,13,10,6,3];
+function aliquotaIOF(diasCorridos){
+  if(diasCorridos >= 30) return 0;
+  const i = Math.max(1, diasCorridos) - 1;
+  return (TABELA_IOF[i] || 0) / 100;
+}
+/* IR regressivo do CDB, sobre o rendimento ja descontado o IOF. */
+function aliquotaIR(diasCorridos){
+  if(diasCorridos <= 180) return 0.225;
+  if(diasCorridos <= 360) return 0.20;
+  if(diasCorridos <= 720) return 0.175;
+  return 0.15;
+}
+
+/* Domingo de Pascoa (algoritmo de Meeus/Butcher): base dos feriados moveis. */
+function domingoDePascoa(ano){
+  const a=ano%19, b=Math.floor(ano/100), c=ano%100;
+  const d=Math.floor(b/4), e=b%4, f=Math.floor((b+8)/25);
+  const g=Math.floor((b-f+1)/3), h=(19*a+b-d-g+15)%30;
+  const i=Math.floor(c/4), k=c%4, l=(32+2*e+2*i-h-k)%7;
+  const m=Math.floor((a+11*h+22*l)/451);
+  const mes=Math.floor((h+l-7*m+114)/31), dia=((h+l-7*m+114)%31)+1;
+  return new Date(ano, mes-1, dia);
+}
+/* Data de hoje no fuso local. Nao usar toISOString(): ele devolve UTC, e a
+   partir das 21h no Brasil isso ja seria a data de amanha. */
+function hojeISO(){ return dataISO(new Date()); }
+function dataISO(d){
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+/* Feriados nacionais que o mercado nao opera. Cacheado por ano. */
+const cacheFeriados = {};
+function feriadosNacionais(ano){
+  if(cacheFeriados[ano]) return cacheFeriados[ano];
+  const fixos = ['01-01','04-21','05-01','09-07','10-12','11-02','11-15','11-20','12-25'];
+  const set = new Set(fixos.map(md => ano+'-'+md));
+  const pascoa = domingoDePascoa(ano);
+  [[-48],[-47],[-2],[60]].forEach(([delta])=>{
+    const d = new Date(pascoa);
+    d.setDate(d.getDate()+delta);
+    set.add(dataISO(d));
+  });
+  cacheFeriados[ano] = set;
+  return set;
+}
+
+/* CDI rende em dia util (base 252): fora sabado, domingo e feriado nacional. */
+function diasUteisEntre(inicio, fim){
+  if(!inicio || !fim) return 0;
+  const d = new Date(inicio+'T00:00:00'), f = new Date(fim+'T00:00:00');
+  if(isNaN(d) || isNaN(f)) return 0;
+  let n = 0;
+  while(d < f){
+    const s = d.getDay();
+    if(s !== 0 && s !== 6 && !feriadosNacionais(d.getFullYear()).has(dataISO(d))) n++;
+    d.setDate(d.getDate()+1);
+  }
+  return n;
+}
+
+function diasCorridosEntre(inicio, fim){
+  if(!inicio || !fim) return 0;
+  const a = new Date(inicio+'T00:00:00'), b = new Date(fim+'T00:00:00');
+  if(isNaN(a) || isNaN(b)) return 0;
+  return Math.max(0, Math.round((b-a)/86400000));
+}
+
+function calcularAplicacao(a){
+  const hoje = hojeISO();
+  const fim = a.dataResgate || hoje;
+  const principal = Number(a.valor) || 0;
+  const du = diasUteisEntre(a.data, fim);
+  const dc = diasCorridosEntre(a.data, fim);
+  const taxaDia = (Math.pow(1 + (Number(investimentos.cdiAnual)||0)/100, 1/252) - 1)
+                  * ((Number(a.pctCdi)||0)/100);
+  const bruto = principal * Math.pow(1 + taxaDia, du);
+  const rendimento = bruto - principal;
+  const iof = rendimento * aliquotaIOF(dc);
+  const ir = Math.max(0, rendimento - iof) * aliquotaIR(dc);
+  return {
+    du, dc, principal, bruto, rendimento, iof, ir,
+    liquido: principal + rendimento - iof - ir,
+    rendimentoLiquido: rendimento - iof - ir,
+    aliqIR: aliquotaIR(dc)*100,
+    aliqIOF: aliquotaIOF(dc)*100
+  };
+}
+
+function renderInvestimentos(){
+  document.getElementById('cdiAnual').value = numParaInput(investimentos.cdiAnual);
+  document.getElementById('cdiAviso').classList.toggle('hidden', (Number(investimentos.cdiAnual)||0) > 0);
+
+  document.getElementById('investLista').innerHTML = investimentos.aplicacoes.map((a,i)=>{
+    const c = calcularAplicacao(a);
+    const resgatado = !!a.dataResgate;
+    return `
+    <div class="plan-item">
+      <div class="plan-head">
+        <input class="plan-nome" type="text" value="${escapeHtml(a.nome)}" placeholder="ex: CDB Nubank"
+               oninput="editarAplicacao(${i},'nome',this.value)">
+        <button class="plan-del" onclick="removerAplicacao(${i})">✕</button>
+      </div>
+      <div class="mil-grid">
+        <div class="mil-field">
+          <div class="mil-lbl">Valor aplicado</div>
+          <div class="mil-box"><span>R$</span>
+            <input type="text" inputmode="decimal" value="${escapeHtml(numParaInput(a.valor))}"
+                   oninput="editarAplicacao(${i},'valor',this.value)">
+          </div>
+        </div>
+        <div class="mil-field">
+          <div class="mil-lbl">% do CDI</div>
+          <div class="mil-box">
+            <input type="text" inputmode="decimal" value="${escapeHtml(numParaInput(a.pctCdi))}"
+                   oninput="editarAplicacao(${i},'pctCdi',this.value)"><span style="padding:0 9px 0 0">%</span>
+          </div>
+        </div>
+      </div>
+      <div style="margin-top:8px">
+        <div class="mil-lbl">Data da aplicação</div>
+        <input type="date" value="${escapeHtml(a.data)}" onchange="editarAplicacao(${i},'data',this.value)">
+      </div>
+      <div class="mil-total" style="display:block">
+        <div style="display:flex; justify-content:space-between; align-items:baseline">
+          <span>${resgatado ? 'Resgatado em '+a.dataResgate.split('-').reverse().join('/') : 'Líquido hoje'}</span>
+          <span class="v" style="font-size:16px">${fmt(c.liquido)}</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; margin-top:4px; font-size:11px">
+          <span>${c.dc} dias · ${c.du} úteis</span>
+          <span>rendeu ${fmt(c.rendimentoLiquido)} líquido</span>
+        </div>
+        <div style="margin-top:5px; font-size:10.5px; line-height:1.5; opacity:.85">
+          bruto ${fmt(c.bruto)} · IR ${c.aliqIR.toFixed(1).replace('.',',')}% = ${fmt(c.ir)}${c.iof > 0 ? ' · IOF '+c.aliqIOF.toFixed(0)+'% = '+fmt(c.iof) : ''}
+        </div>
+        ${resgatado
+          ? `<button class="plan-add" style="margin-top:8px" onclick="editarAplicacao(${i},'dataResgate','')">Desfazer resgate</button>`
+          : `<button class="plan-add" style="margin-top:8px" onclick="resgatarAplicacao(${i})">Resgatar hoje</button>`}
+      </div>
+    </div>`;
+  }).join('') || '<div class="empty-state">Nenhuma aplicação cadastrada.</div>';
+
+  const ativas = investimentos.aplicacoes.filter(a=>!a.dataResgate);
+  const somaP = ativas.reduce((s,a)=>s + (Number(a.valor)||0), 0);
+  const somaL = ativas.reduce((s,a)=>s + calcularAplicacao(a).liquido, 0);
+  const linha = (lbl,val,cls,strong)=>`
+    <div class="derived-row${strong?' strong':''}"><span class="d-lbl">${lbl}</span><span class="d-val ${cls||''}">${val}</span></div>`;
+  document.getElementById('investTotais').innerHTML =
+    linha('Aplicado (não resgatado)', fmt(somaP)) +
+    linha('Líquido hoje', fmt(somaL), 'bal-good', true) +
+    linha('Rendimento líquido', fmt(somaL - somaP), somaL>=somaP?'bal-good':'bal-bad');
+
+  document.getElementById('investNota').textContent =
+    'Estimativa. O CDI rende em dia útil e aqui os feriados nacionais não são descontados, '
+    + 'então o valor tende a ficar um pouco acima do real. IR regressivo (22,5% até 180 dias, '
+    + '20% até 360, 17,5% até 720, 15% depois) e IOF para resgate antes de 30 dias já entram na conta.';
+}
+
+function marcarInvestSujo(){
+  investSujo = true;
+  const b = document.getElementById('investSaveBtn');
+  b.disabled = false;
+  b.textContent = 'Salvar investimentos';
+}
+function editarCdi(v){ investimentos.cdiAnual = parseValor(v) || 0; marcarInvestSujo(); renderInvestimentos(); }
+function editarAplicacao(i, campo, valor){
+  const a = investimentos.aplicacoes[i];
+  if(!a) return;
+  a[campo] = (campo === 'valor' || campo === 'pctCdi') ? (parseValor(valor) || 0) : valor;
+  marcarInvestSujo();
+  renderInvestimentos();
+}
+function resgatarAplicacao(i){
+  const a = investimentos.aplicacoes[i];
+  if(!a) return;
+  const c = calcularAplicacao(a);
+  if(!confirm(`Marcar como resgatado hoje por ${fmt(c.liquido)}?`)) return;
+  a.dataResgate = hojeISO();
+  marcarInvestSujo();
+  renderInvestimentos();
+}
+function adicionarAplicacao(){
+  investimentos.aplicacoes.push({
+    id: Date.now()+'-'+Math.random().toString(36).slice(2,7),
+    nome:'', valor:0, data:hojeISO(), pctCdi:100, dataResgate:''
+  });
+  marcarInvestSujo();
+  renderInvestimentos();
+}
+function removerAplicacao(i){
+  const a = investimentos.aplicacoes[i];
+  const nome = a && a.nome ? `"${a.nome}"` : 'esta aplicação';
+  if(!confirm(`Tirar ${nome} da lista?`)) return;
+  investimentos.aplicacoes.splice(i,1);
+  marcarInvestSujo();
+  renderInvestimentos();
+}
+
+async function salvarInvestimentos(){
+  const msg = document.getElementById('investMsg');
+  const btn = document.getElementById('investSaveBtn');
+  btn.disabled = true;
+  investimentos.atualizadoEm = hojeISO();
+  try{
+    await db.collection('caderno').doc('investimentos').set(investimentos);
+    investSujo = false;
+    btn.textContent = 'Tudo salvo';
+    msg.style.color = 'var(--sage)';
+    msg.textContent = '✓ Investimentos salvos.';
+  }catch(e){
+    console.error('Não foi possível salvar os investimentos:', e);
+    btn.disabled = false;
+    msg.style.color = 'var(--stamp)';
+    msg.textContent = 'Não foi possível salvar. Tente de novo.';
+  }
+  setTimeout(()=>{ msg.textContent=''; }, 3000);
+}
+
+function assinarInvestimentos(){
+  return new Promise(resolve=>{
+    let primeira = true;
+    db.collection('caderno').doc('investimentos').onSnapshot(async snap=>{
+      if(snap.exists){
+        if(!investSujo){
+          investimentos = normalizarInvestimentos(snap.data());
+          renderInvestimentos();
+        }
+      } else if(primeira){
+        try{ await db.collection('caderno').doc('investimentos').set(investimentos); }
+        catch(e){ console.error('Não foi possível criar os investimentos iniciais:', e); }
+        renderInvestimentos();
+      }
+      if(primeira){ primeira = false; resolve(); }
+    }, err=>{
+      console.error('Erro ao sincronizar os investimentos:', err);
+      renderInvestimentos();
+      if(primeira){ primeira = false; resolve(); }
+    });
+  });
+}
+
 /* ---------- tabs ---------- */
 function showTab(name){
-  ['Lancar','Extrato','Resumo','Plano','Milhas'].forEach(t=>{
+  ['Lancar','Extrato','Resumo','Plano','Milhas','Investir'].forEach(t=>{
     document.getElementById('tab'+t).classList.toggle('hidden', t.toLowerCase() !== name);
     document.getElementById('nav'+t).classList.toggle('active', t.toLowerCase() === name);
   });
