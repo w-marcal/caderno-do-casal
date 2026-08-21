@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>Caderno do Casal</title>
+<title>Conta a Dois</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
@@ -266,6 +266,43 @@
   .mil-tag.uso{background:var(--stamp-bg); color:var(--stamp);}
   select{appearance:none; background-image:linear-gradient(45deg,transparent 50%,var(--ink-soft) 50%),linear-gradient(135deg,var(--ink-soft) 50%,transparent 50%); background-position:calc(100% - 16px) 50%,calc(100% - 11px) 50%; background-size:5px 5px,5px 5px; background-repeat:no-repeat;}
 
+  /* ---- alternador gasto/entrada ---- */
+  .tipo-toggle{display:flex; gap:6px; background:var(--paper); padding:4px; border-radius:12px; margin-bottom:16px;}
+  .tipo-btn{
+    flex:1; padding:10px; border:none; background:none; border-radius:9px;
+    font-size:14px; font-weight:700; color:var(--ink-soft); transition:background .15s, color .15s;
+  }
+  .tipo-btn.sel{background:#fff; color:var(--ink); box-shadow:0 1px 3px rgba(0,0,0,.10);}
+  #tipoEntrada.sel{color:var(--sage);}
+  #tipoGasto.sel{color:var(--stamp);}
+
+  /* ---- painel ---- */
+  .card.destaque{padding-bottom:16px;}
+  .fluxo-row{display:flex; gap:10px; margin-top:16px;}
+  .fluxo-card{
+    flex:1; border-radius:11px; padding:11px 12px; border:1px solid var(--line); background:#fff;
+  }
+  .fluxo-card.entrou{background:var(--sage-bg); border-color:transparent;}
+  .fluxo-card.saiu{background:var(--stamp-bg); border-color:transparent;}
+  .fx-lbl{font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.07em; opacity:.7;}
+  .fluxo-card.entrou .fx-lbl{color:var(--sage);}
+  .fluxo-card.saiu .fx-lbl{color:var(--stamp);}
+  .fx-amt{font-family:'JetBrains Mono',monospace; font-weight:600; font-size:16px; margin-top:3px; color:var(--ink);}
+  .barra-fluxo{height:6px; background:var(--sage-bg); border-radius:4px; overflow:hidden; margin-top:14px;}
+  .barra-fluxo-fill{height:100%; background:var(--sage); border-radius:4px; transition:width .3s;}
+  .barra-fluxo-fill.estourou{background:var(--stamp);}
+  .fluxo-nota{font-size:11.5px; color:var(--ink-soft); text-align:center; margin-top:7px;}
+
+  .ent-row{display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px dashed var(--line);}
+  .ent-row:last-child{border-bottom:none;}
+  .ent-ic{font-size:17px; width:24px; text-align:center;}
+  .ent-mid{flex:1; min-width:0;}
+  .ent-nome{font-size:14px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .ent-fonte{font-size:11px; color:var(--ink-soft); margin-top:1px;}
+  .ent-val{font-family:'JetBrains Mono',monospace; font-weight:600; font-size:14.5px; color:var(--sage); white-space:nowrap;}
+  .cat-pct{font-size:10.5px; opacity:.65; margin-left:3px;}
+  .led-val.entrada{color:var(--sage);}
+
   .share-hint{
     font-size:11.5px; color:var(--ink-soft); text-align:center; line-height:1.5; margin:14px 0 4px;
   }
@@ -275,9 +312,9 @@
 
 <div id="lockScreen" class="lock hidden">
   <div class="lock-card">
-    <div class="cover-eyebrow" style="color:var(--stamp)">Caderno do Casal</div>
+    <div class="cover-eyebrow" style="color:var(--stamp)">Conta a Dois</div>
     <h2>Entrar</h2>
-    <p>Use a conta que vocês criaram para o caderno.</p>
+    <p>Entrem com a conta de vocês.</p>
 
     <label style="text-align:left">E-mail</label>
     <input id="loginEmail" type="email" inputmode="email" autocomplete="username" placeholder="voce@exemplo.com">
@@ -290,17 +327,17 @@
     <button class="btn-ghost" style="width:100%" onclick="recuperarSenha()">Esqueci a senha</button>
     <div class="save-msg" id="lockMsg"></div>
   </div>
-  <p class="share-hint">Só as contas cadastradas por vocês conseguem abrir o caderno. Quem tiver o link mas não tiver conta não vê nada.</p>
+  <p class="share-hint">Só as contas cadastradas por vocês entram aqui. Quem tiver o link mas não tiver conta não vê nada.</p>
 </div>
 
 <div id="carregando" class="lock">
-  <div class="lock-card"><p style="margin:0">Abrindo o caderno…</p></div>
+  <div class="lock-card"><p style="margin:0">Abrindo…</p></div>
 </div>
 
 <div id="app" class="hidden">
   <header class="cover">
-    <div class="cover-eyebrow">Caderno do Casal · Felipe & Layla</div>
-    <h1 class="cover-title">Gastos do mês</h1>
+    <div class="cover-eyebrow">Felipe &amp; Layla</div>
+    <h1 class="cover-title">Conta a Dois</h1>
     <div class="cover-sub" id="headerSub">carregando…</div>
   </header>
 
@@ -308,8 +345,13 @@
     <main>
 
       <!-- LANÇAR -->
-      <section id="tabLancar">
+      <section id="tabLancar" class="hidden">
         <div class="card">
+          <div class="tipo-toggle">
+            <button class="tipo-btn sel" id="tipoGasto" onclick="setTipoLanc('gasto')">− Gasto</button>
+            <button class="tipo-btn" id="tipoEntrada" onclick="setTipoLanc('entrada')">+ Entrada</button>
+          </div>
+
           <div class="section-label">Quem está lançando</div>
           <div class="who-toggle">
             <button class="who-btn sel" id="whoFelipe" onclick="setWho('Felipe')">Felipe</button>
@@ -348,29 +390,51 @@
         </div>
       </section>
 
-      <!-- RESUMO -->
-      <section id="tabResumo" class="hidden">
-        <div class="card">
+      <!-- PAINEL -->
+      <section id="tabResumo">
+        <div class="card destaque">
           <div class="month-nav">
             <button onclick="mudarMesResumo(-1)">‹</button>
             <div class="m-label" id="resMesLabel">—</div>
             <button onclick="mudarMesResumo(1)">›</button>
           </div>
-          <div class="big-total-label">Total gasto no mês</div>
-          <div class="big-total" id="resTotal">R$ 0,00</div>
-          <div class="split-row">
-            <div class="split-card"><div class="who">Felipe</div><div class="amt" id="resFelipe">R$ 0</div></div>
-            <div class="split-card"><div class="who">Layla</div><div class="amt" id="resLayla">R$ 0</div></div>
+          <div class="big-total-label">Sobrou no mês</div>
+          <div class="big-total" id="resSaldo">R$ 0,00</div>
+          <div class="fluxo-row">
+            <div class="fluxo-card entrou">
+              <div class="fx-lbl">Entrou</div>
+              <div class="fx-amt" id="resEntrou">R$ 0</div>
+            </div>
+            <div class="fluxo-card saiu">
+              <div class="fx-lbl">Saiu</div>
+              <div class="fx-amt" id="resSaiu">R$ 0</div>
+            </div>
+          </div>
+          <div class="barra-fluxo"><div class="barra-fluxo-fill" id="resBarra"></div></div>
+          <div class="fluxo-nota" id="resNotaFluxo"></div>
+        </div>
+
+        <div class="card">
+          <div class="section-label">De onde veio</div>
+          <div id="resEntradas"></div>
+        </div>
+
+        <div class="card">
+          <div class="section-label">Para onde foi</div>
+          <div id="resCategorias"></div>
+          <div class="split-row" style="margin-top:14px">
+            <div class="split-card"><div class="who">Felipe gastou</div><div class="amt" id="resFelipe">R$ 0</div></div>
+            <div class="split-card"><div class="who">Layla gastou</div><div class="amt" id="resLayla">R$ 0</div></div>
           </div>
         </div>
 
         <div class="card">
-          <div class="section-label">Por categoria</div>
-          <div id="resCategorias"></div>
+          <div class="section-label">O que vocês têm hoje</div>
+          <div class="derived" id="resPatrimonio"></div>
         </div>
 
         <div class="card">
-          <div class="section-label">Comparado ao orçado</div>
+          <div class="section-label">Comparado ao plano</div>
           <div id="resOrcado"></div>
           <div class="budget-note" id="budgetNote"></div>
         </div>
@@ -565,9 +629,9 @@
   </div>
 
   <nav class="tabbar">
-    <button class="active" id="navLancar" onclick="showTab('lancar')"><span class="ico">✎</span>Lançar</button>
+    <button class="active" id="navResumo" onclick="showTab('resumo')"><span class="ico">◆</span>Painel</button>
+    <button id="navLancar" onclick="showTab('lancar')"><span class="ico">✎</span>Lançar</button>
     <button id="navExtrato" onclick="showTab('extrato')"><span class="ico">📜</span>Extrato</button>
-    <button id="navResumo" onclick="showTab('resumo')"><span class="ico">◆</span>Resumo</button>
     <button id="navPlano" onclick="showTab('plano')"><span class="ico">⚖</span>Plano</button>
     <button id="navMilhas" onclick="showTab('milhas')"><span class="ico">✈</span>Milhas</button>
     <button id="navInvestir" onclick="showTab('investir')"><span class="ico">▲</span>Investir</button>
@@ -672,7 +736,7 @@ async function recuperarSenha(){
 }
 
 async function sair(){
-  if(!confirm('Sair do caderno neste aparelho?')) return;
+  if(!confirm('Sair neste aparelho?')) return;
   await auth.signOut();
   location.reload();
 }
@@ -708,6 +772,25 @@ const CATEGORIES = [
    Tudo isto é editável na aba "Plano" e fica salvo no Firestore, compartilhado
    entre os dois. Os totais (renda certa, fixos, sobra) NÃO são guardados: são
    calculados a partir dos campos, senão ficariam desatualizados a cada edição. */
+/* Categorias de entrada: dinheiro chegando, nao saindo. */
+const CATEGORIAS_ENTRADA = [
+  {id:'salario',    em:'💼', label:'Salário'},
+  {id:'loja',       em:'🏷️', label:'Loja'},
+  {id:'freela',     em:'🧰', label:'Freela'},
+  {id:'venda',      em:'💱', label:'Venda'},
+  {id:'reembolso',  em:'↩️', label:'Reembolso'},
+  {id:'presente',   em:'🎁', label:'Presente'},
+  {id:'rendimento', em:'▲', label:'Rendimento'},
+  {id:'outra',      em:'✦', label:'Outra'}
+];
+let tipoLanc = 'gasto';
+function catsDoTipo(){ return tipoLanc === 'entrada' ? CATEGORIAS_ENTRADA : CATEGORIES; }
+function acharCategoria(id, tipo){
+  const lista = tipo === 'entrada' ? CATEGORIAS_ENTRADA : CATEGORIES;
+  return lista.find(c=>c.id===id) || {em:'✦', label:id||'—'};
+}
+function ehEntrada(e){ return e && e.tipo === 'entrada'; }
+
 const PLANO_PADRAO = {
   observacao: 'Valores informados por Felipe em ago/2026. Atualizar sempre que salário, contas ou renda da loja mudarem.',
   atualizadoEm: '2026-08-17',
@@ -801,10 +884,21 @@ async function boot(){
   await Promise.all([ assinarLancamentos(), assinarPlano(), assinarMilhas(), assinarInvestimentos() ]);
 }
 
+function setTipoLanc(t){
+  tipoLanc = t;
+  document.getElementById('tipoGasto').classList.toggle('sel', t==='gasto');
+  document.getElementById('tipoEntrada').classList.toggle('sel', t==='entrada');
+  document.getElementById('saveBtn').textContent = t==='entrada' ? 'Registrar entrada' : 'Carimbar gasto';
+  document.getElementById('fDesc').placeholder = t==='entrada'
+    ? 'ex: salário de agosto, venda no site' : 'ex: feira, hidratante, uber';
+  selectedCat = catsDoTipo()[0].id;
+  buildCatGrid();
+}
+
 function buildCatGrid(){
   const grid = document.getElementById('catGrid');
   grid.innerHTML = '';
-  CATEGORIES.forEach(c=>{
+  catsDoTipo().forEach(c=>{
     const btn = document.createElement('button');
     btn.className = 'cat-chip' + (c.id===selectedCat ? ' sel':'');
     btn.innerHTML = `<span class="em">${c.em}</span>${c.label}`;
@@ -867,6 +961,7 @@ function assinarLancamentos(){
           valor: Number(v.valor) || 0,
           categoria: v.categoria || 'outros',
           quem: v.quem || 'Felipe',
+          tipo: v.tipo === 'entrada' ? 'entrada' : 'gasto',
           desc: v.desc || '',
           data: v.data || ''
         };
@@ -1062,7 +1157,17 @@ function editarDestino(i, campo, valor){
   if(!d) return;
   d[campo] = (campo === 'pct') ? (parseValor(valor) || 0) : valor;
   marcarSujo();
-  if(campo === 'pct') renderDestino();
+  if(campo !== 'pct') return;
+  /* so os valores em reais e o aviso; os campos de % ficam de pe */
+  const total = totalRetroativo();
+  document.querySelectorAll('#planoDestino .pct-amt').forEach((el,j)=>{
+    const alvo = plano.destino[j];
+    if(alvo) el.textContent = fmt(total * (Number(alvo.pct)||0) / 100);
+  });
+  const somaPct = plano.destino.reduce((acc,x)=>acc + (Number(x.pct)||0), 0);
+  const warn = document.getElementById('destinoWarn');
+  warn.classList.toggle('hidden', Math.abs(somaPct - 100) < 0.01);
+  warn.textContent = `Os percentuais somam ${somaPct.toLocaleString('pt-BR')}% — o ideal é fechar em 100%.`;
 }
 function editarRetro(campo, valor){
   if(campo === 'meses'){
@@ -1164,9 +1269,11 @@ async function salvarLancamento(){
   const desc = document.getElementById('fDesc').value.trim();
   const dataStr = document.getElementById('fData').value || hojeISO();
   const id = Date.now()+'-'+Math.random().toString(36).slice(2,7);
+  const catInfo = acharCategoria(selectedCat, tipoLanc);
   const entry = {
     valor, categoria: selectedCat, quem: selectedWho,
-    desc: desc || CATEGORIES.find(c=>c.id===selectedCat).label,
+    tipo: tipoLanc,
+    desc: desc || catInfo.label,
     data: dataStr,
     criadoEm: new Date().toISOString()
   };
@@ -1176,7 +1283,7 @@ async function salvarLancamento(){
        atualiza sozinha pelo listener em tempo real. */
     await lancRef().doc(id).set(entry);
     msg.style.color = 'var(--sage)';
-    msg.textContent = '✓ Lançamento carimbado no caderno.';
+    msg.textContent = tipoLanc === 'entrada' ? '✓ Entrada registrada.' : '✓ Gasto registrado.';
     document.getElementById('fValor').value = '';
     document.getElementById('fDesc').value = '';
   }catch(e){
@@ -1203,40 +1310,50 @@ async function excluirLancamento(id){
 /* ---------- resumo por WhatsApp ---------- */
 
 function montarResumoTexto(){
-  const key = monthKey(resumoCursor);
-  const list = entries.filter(e=>e.data.slice(0,7)===key);
-  const total = list.reduce((s,e)=>s+e.valor,0);
+  const gastos = gastosDoMes(resumoCursor);
+  const saiu = gastos.reduce((s,e)=>s+e.valor,0);
+  const entrou = totalEntradasDoMes(resumoCursor);
   const porQuem = {Felipe:0, Layla:0};
-  list.forEach(e=>{ porQuem[e.quem] = (porQuem[e.quem]||0) + e.valor; });
+  gastos.forEach(e=>{ porQuem[e.quem] = (porQuem[e.quem]||0) + e.valor; });
   const porCat = {};
-  list.forEach(e=>{ porCat[e.categoria] = (porCat[e.categoria]||0) + e.valor; });
+  gastos.forEach(e=>{ porCat[e.categoria] = (porCat[e.categoria]||0) + e.valor; });
 
   const linhas = [];
-  linhas.push(`*Caderno do Casal* — ${monthLabel(resumoCursor)}`);
+  linhas.push(`*Conta a Dois* — ${monthLabel(resumoCursor)}`);
   linhas.push('');
-  linhas.push(`Total gasto: *${fmt(total)}*`);
-  linhas.push(`Felipe: ${fmt(porQuem.Felipe||0)}  |  Layla: ${fmt(porQuem.Layla||0)}`);
+  linhas.push(`Entrou: *${fmt(entrou)}*`);
+  linhas.push(`Saiu: *${fmt(saiu)}*`);
+  linhas.push(`Sobrou: *${fmt(entrou - saiu)}*`);
+  linhas.push('');
+  linhas.push(`Felipe gastou ${fmt(porQuem.Felipe||0)}  |  Layla gastou ${fmt(porQuem.Layla||0)}`);
+
+  const itens = entradasDoMes(resumoCursor);
+  if(itens.length){
+    linhas.push('');
+    linhas.push('*De onde veio*');
+    itens.slice().sort((a,b)=>b.valor-a.valor)
+      .forEach(i=>linhas.push(`${i.rotulo}: ${fmt(i.valor)}`));
+  }
 
   const cats = CATEGORIES.filter(c=>porCat[c.id]).sort((a,b)=>porCat[b.id]-porCat[a.id]);
   if(cats.length){
     linhas.push('');
-    linhas.push('*Por categoria*');
+    linhas.push('*Para onde foi*');
     cats.forEach(c=>linhas.push(`${c.em} ${c.label}: ${fmt(porCat[c.id])}`));
-  }
-
-  const renda = rendaDoCasal();
-  const previsto = totalFixos() + totalVariaveis();
-  linhas.push('');
-  linhas.push('*Comparado ao plano*');
-  linhas.push(`Renda do casal: ${fmt(renda)}`);
-  linhas.push(`Previsto no mês: ${fmt(previsto)}`);
-  linhas.push(`Sobra: ${fmt(renda - total)}`);
-
-  if(list.length === 0){
+  } else {
     linhas.push('');
-    linhas.push('(nenhum lançamento neste mês)');
+    linhas.push('(nenhum gasto lançado neste mês)');
   }
-  return linhas.join('\n');
+
+  const pat = patrimonio();
+  if(pat.total > 0){
+    linhas.push('');
+    linhas.push('*O que temos hoje*');
+    if(pat.cdbs > 0) linhas.push(`Investimentos: ${fmt(pat.cdbs)}`);
+    if(pat.milhas > 0) linhas.push(`Milhas: ${fmt(pat.milhas)}`);
+    linhas.push(`Total: ${fmt(pat.total)}`);
+  }
+  return linhas.join(String.fromCharCode(10));
 }
 
 /* Sem telefone, abre o seletor de contatos. Com telefone, já abre a conversa
@@ -1668,9 +1785,11 @@ function diasCorridosEntre(inicio, fim){
   return Math.max(0, Math.round((b-a)/86400000));
 }
 
-function calcularAplicacao(a){
+function calcularAplicacao(a, corte){
   const hoje = hojeISO();
-  const fim = a.dataResgate || hoje;
+  let fim = a.dataResgate || hoje;
+  /* corte serve para perguntar "quanto valia nesta data", base do rendimento do mes */
+  if(corte && corte < fim) fim = corte;
   const principal = Number(a.valor) || 0;
   const du = diasUteisEntre(a.data, fim);
   const dc = diasCorridosEntre(a.data, fim);
@@ -1689,13 +1808,32 @@ function calcularAplicacao(a){
   };
 }
 
+function blocoResultadoInvest(a, i){
+  const c = calcularAplicacao(a);
+  const resgatado = !!a.dataResgate;
+  return `<div class="mil-total" style="display:block">
+        <div style="display:flex; justify-content:space-between; align-items:baseline">
+          <span>${resgatado ? 'Resgatado em '+a.dataResgate.split('-').reverse().join('/') : 'Líquido hoje'}</span>
+          <span class="v" style="font-size:16px">${fmt(c.liquido)}</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; margin-top:4px; font-size:11px">
+          <span>${c.dc} dias · ${c.du} úteis</span>
+          <span>rendeu ${fmt(c.rendimentoLiquido)} líquido</span>
+        </div>
+        <div style="margin-top:5px; font-size:10.5px; line-height:1.5; opacity:.85">
+          bruto ${fmt(c.bruto)} · IR ${c.aliqIR.toFixed(1).replace('.',',')}% = ${fmt(c.ir)}${c.iof > 0 ? ' · IOF '+c.aliqIOF.toFixed(0)+'% = '+fmt(c.iof) : ''}
+        </div>
+        ${resgatado
+          ? `<button class="plan-add" style="margin-top:8px" onclick="editarAplicacao(${i},'dataResgate','')">Desfazer resgate</button>`
+          : `<button class="plan-add" style="margin-top:8px" onclick="resgatarAplicacao(${i})">Resgatar hoje</button>`}
+      </div>`;
+}
+
 function renderInvestimentos(){
   document.getElementById('cdiAnual').value = numParaInput(investimentos.cdiAnual);
   document.getElementById('cdiAviso').classList.toggle('hidden', (Number(investimentos.cdiAnual)||0) > 0);
 
   document.getElementById('investLista').innerHTML = investimentos.aplicacoes.map((a,i)=>{
-    const c = calcularAplicacao(a);
-    const resgatado = !!a.dataResgate;
     return `
     <div class="plan-item">
       <div class="plan-head">
@@ -1723,25 +1861,14 @@ function renderInvestimentos(){
         <div class="mil-lbl">Data da aplicação</div>
         <input type="date" value="${escapeHtml(a.data)}" onchange="editarAplicacao(${i},'data',this.value)">
       </div>
-      <div class="mil-total" style="display:block">
-        <div style="display:flex; justify-content:space-between; align-items:baseline">
-          <span>${resgatado ? 'Resgatado em '+a.dataResgate.split('-').reverse().join('/') : 'Líquido hoje'}</span>
-          <span class="v" style="font-size:16px">${fmt(c.liquido)}</span>
-        </div>
-        <div style="display:flex; justify-content:space-between; margin-top:4px; font-size:11px">
-          <span>${c.dc} dias · ${c.du} úteis</span>
-          <span>rendeu ${fmt(c.rendimentoLiquido)} líquido</span>
-        </div>
-        <div style="margin-top:5px; font-size:10.5px; line-height:1.5; opacity:.85">
-          bruto ${fmt(c.bruto)} · IR ${c.aliqIR.toFixed(1).replace('.',',')}% = ${fmt(c.ir)}${c.iof > 0 ? ' · IOF '+c.aliqIOF.toFixed(0)+'% = '+fmt(c.iof) : ''}
-        </div>
-        ${resgatado
-          ? `<button class="plan-add" style="margin-top:8px" onclick="editarAplicacao(${i},'dataResgate','')">Desfazer resgate</button>`
-          : `<button class="plan-add" style="margin-top:8px" onclick="resgatarAplicacao(${i})">Resgatar hoje</button>`}
-      </div>
+      ${blocoResultadoInvest(a, i)}
     </div>`;
   }).join('') || '<div class="empty-state">Nenhuma aplicação cadastrada.</div>';
 
+  atualizarTotaisInvest();
+}
+
+function atualizarTotaisInvest(){
   const ativas = investimentos.aplicacoes.filter(a=>!a.dataResgate);
   const somaP = ativas.reduce((s,a)=>s + (Number(a.valor)||0), 0);
   const somaL = ativas.reduce((s,a)=>s + calcularAplicacao(a).liquido, 0);
@@ -1753,9 +1880,10 @@ function renderInvestimentos(){
     linha('Rendimento líquido', fmt(somaL - somaP), somaL>=somaP?'bal-good':'bal-bad');
 
   document.getElementById('investNota').textContent =
-    'Estimativa. O CDI rende em dia útil e aqui os feriados nacionais não são descontados, '
-    + 'então o valor tende a ficar um pouco acima do real. IR regressivo (22,5% até 180 dias, '
-    + '20% até 360, 17,5% até 720, 15% depois) e IOF para resgate antes de 30 dias já entram na conta.';
+    'Estimativa. Conta em dias úteis (base 252), descontando fins de semana e feriados nacionais. '
+    + 'IR regressivo (22,5% até 180 dias, 20% até 360, 17,5% até 720, 15% depois) e IOF para resgate '
+    + 'antes de 30 dias já entram na conta. Bancos arredondam de formas um pouco diferentes, então '
+    + 'espere centavos de diferença do extrato.';
 }
 
 function marcarInvestSujo(){
@@ -1764,13 +1892,31 @@ function marcarInvestSujo(){
   b.disabled = false;
   b.textContent = 'Salvar investimentos';
 }
-function editarCdi(v){ investimentos.cdiAnual = parseValor(v) || 0; marcarInvestSujo(); renderInvestimentos(); }
+/* Atualiza so os numeros calculados, sem recriar os campos: recriar arrancava
+   o foco a cada letra digitada no nome do banco. */
+function atualizarResultadosInvest(){
+  const cards = document.querySelectorAll('#investLista .plan-item');
+  investimentos.aplicacoes.forEach((a,i)=>{
+    const alvo = cards[i] && cards[i].querySelector('.mil-total');
+    if(alvo) alvo.outerHTML = blocoResultadoInvest(a, i);
+  });
+  atualizarTotaisInvest();
+  renderPainel();
+}
+function editarCdi(v){
+  investimentos.cdiAnual = parseValor(v) || 0;
+  marcarInvestSujo();
+  document.getElementById('cdiAviso').classList.toggle('hidden', (Number(investimentos.cdiAnual)||0) > 0);
+  atualizarResultadosInvest();
+}
 function editarAplicacao(i, campo, valor){
   const a = investimentos.aplicacoes[i];
   if(!a) return;
   a[campo] = (campo === 'valor' || campo === 'pctCdi') ? (parseValor(valor) || 0) : valor;
   marcarInvestSujo();
-  renderInvestimentos();
+  /* resgatar/desfazer troca os botoes do card, ai vale redesenhar */
+  if(campo === 'dataResgate') renderInvestimentos();
+  else atualizarResultadosInvest();
 }
 function resgatarAplicacao(i){
   const a = investimentos.aplicacoes[i];
@@ -1841,6 +1987,74 @@ function assinarInvestimentos(){
   });
 }
 
+/* ---------- numeros que atravessam as abas ---------- */
+
+function primeiroDiaDoMes(d){ return dataISO(new Date(d.getFullYear(), d.getMonth(), 1)); }
+function ultimoDiaDoMes(d){ return dataISO(new Date(d.getFullYear(), d.getMonth()+1, 0)); }
+
+/* Quanto os CDBs renderam dentro de um mes: quanto valiam no fim menos quanto
+   valiam no comeco. Assim o rendimento aparece no mes em que aconteceu. */
+function rendimentoInvestNoMes(cursor){
+  const ini = primeiroDiaDoMes(cursor);
+  const fimMes = ultimoDiaDoMes(cursor);
+  const hoje = hojeISO();
+  const fim = fimMes < hoje ? fimMes : hoje;
+  if(fim < ini) return 0;
+  return investimentos.aplicacoes.reduce((soma, a)=>{
+    if(!a.data || a.data > fim) return soma;
+    const inicioJanela = a.data > ini ? a.data : ini;
+    const noFim = calcularAplicacao(a, fim).liquido;
+    const noInicio = calcularAplicacao(a, inicioJanela).liquido;
+    return soma + Math.max(0, noFim - noInicio);
+  }, 0);
+}
+
+/* Vendas de milhas do mes entram como dinheiro que chegou. */
+function vendasMilhasNoMes(cursor){
+  const key = monthKey(cursor);
+  return milhas.movimentos
+    .filter(m=>m.tipo === 'venda' && (m.data||'').slice(0,7) === key)
+    .reduce((soma,m)=>soma + (Number(m.valor)||0), 0);
+}
+
+/* Tudo que entrou no mes, de todas as abas, numa lista so. */
+function entradasDoMes(cursor){
+  const key = monthKey(cursor);
+  const itens = [];
+  plano.renda.filter(r=>r.ativo).forEach(r=>{
+    itens.push({rotulo: r.nome || 'Renda', valor: Number(r.valor)||0, fonte: 'plano'});
+  });
+  entries.filter(e=>ehEntrada(e) && e.data.slice(0,7) === key).forEach(e=>{
+    const cat = acharCategoria(e.categoria, 'entrada');
+    itens.push({rotulo: e.desc || cat.label, valor: e.valor, fonte: 'lancado', em: cat.em, quem: e.quem});
+  });
+  const milhasVendidas = vendasMilhasNoMes(cursor);
+  if(milhasVendidas > 0) itens.push({rotulo:'Venda de milhas', valor: milhasVendidas, fonte:'milhas', em:'✈'});
+  const rendeu = rendimentoInvestNoMes(cursor);
+  if(rendeu > 0.005) itens.push({rotulo:'Rendimento dos investimentos', valor: rendeu, fonte:'investir', em:'▲'});
+  return itens;
+}
+function totalEntradasDoMes(cursor){
+  return entradasDoMes(cursor).reduce((soma,i)=>soma + i.valor, 0);
+}
+/* Gastos do mes: so os lancamentos de saida. */
+function gastosDoMes(cursor){
+  const key = monthKey(cursor);
+  return entries.filter(e=>!ehEntrada(e) && e.data.slice(0,7) === key);
+}
+function totalGastosDoMes(cursor){
+  return gastosDoMes(cursor).reduce((soma,e)=>soma + e.valor, 0);
+}
+
+/* O que o casal tem hoje, somando as abas. */
+function patrimonio(){
+  const cdbs = investimentos.aplicacoes
+    .filter(a=>!a.dataResgate)
+    .reduce((soma,a)=>soma + calcularAplicacao(a).liquido, 0);
+  const estoqueMilhas = milhas.programas.reduce((soma,p)=>soma + valorEstoque(p), 0);
+  return { cdbs, milhas: estoqueMilhas, total: cdbs + estoqueMilhas };
+}
+
 /* ---------- tabs ---------- */
 function showTab(name){
   ['Lancar','Extrato','Resumo','Plano','Milhas','Investir'].forEach(t=>{
@@ -1864,15 +2078,16 @@ function renderExtrato(){
     return;
   }
   el.innerHTML = list.map(e=>{
-    const cat = CATEGORIES.find(c=>c.id===e.categoria) || {em:'✦'};
+    const entrada = ehEntrada(e);
+    const cat = acharCategoria(e.categoria, e.tipo);
     const [y,m,d] = e.data.split('-');
     return `<div class="ledger-row">
       <div class="led-cat">${cat.em}</div>
       <div class="led-mid">
         <div class="led-desc">${escapeHtml(e.desc)}</div>
-        <div class="led-meta">${d}/${m} · ${e.quem}</div>
+        <div class="led-meta">${d}/${m} · ${e.quem} · ${entrada ? 'entrada' : cat.label}</div>
       </div>
-      <div class="led-val">${fmt(e.valor)}</div>
+      <div class="led-val${entrada ? ' entrada' : ''}">${entrada ? '+' : '−'} ${fmt(e.valor)}</div>
       <button class="led-del" onclick="excluirLancamento('${e.id}')">✕</button>
     </div>`;
   }).join('');
@@ -1886,56 +2101,100 @@ function mudarMesResumo(delta){
   resumoCursor = new Date(resumoCursor.getFullYear(), resumoCursor.getMonth()+delta, 1);
   renderResumo();
 }
-function renderResumo(){
-  document.getElementById('resMesLabel').textContent = monthLabel(resumoCursor);
-  const key = monthKey(resumoCursor);
-  const list = entries.filter(e=>e.data.slice(0,7)===key);
-  const total = list.reduce((s,e)=>s+e.valor,0);
-  document.getElementById('resTotal').textContent = fmt(total);
+function renderResumo(){ renderPainel(); }
 
+function renderPainel(){
+  if(!document.getElementById('resSaldo')) return;
+  document.getElementById('resMesLabel').textContent = monthLabel(resumoCursor);
+
+  const entrou = totalEntradasDoMes(resumoCursor);
+  const gastos = gastosDoMes(resumoCursor);
+  const saiu = gastos.reduce((s,e)=>s+e.valor, 0);
+  const sobra = entrou - saiu;
+
+  const elSaldo = document.getElementById('resSaldo');
+  elSaldo.textContent = fmt(sobra);
+  elSaldo.className = 'big-total ' + (sobra >= 0 ? 'bal-good' : 'bal-bad');
+  document.getElementById('resEntrou').textContent = fmt(entrou);
+  document.getElementById('resSaiu').textContent = fmt(saiu);
+
+  /* Barra: quanto do que entrou já foi gasto. */
+  const consumido = entrou > 0 ? Math.min(100, (saiu/entrou)*100) : (saiu > 0 ? 100 : 0);
+  const barra = document.getElementById('resBarra');
+  barra.style.width = consumido.toFixed(1) + '%';
+  barra.className = 'barra-fluxo-fill' + (consumido > 100 - 0.01 && saiu > entrou ? ' estourou' : '');
+  document.getElementById('resNotaFluxo').textContent = entrou > 0
+    ? `Vocês gastaram ${consumido.toFixed(0)}% do que entrou neste mês.`
+    : 'Sem entradas registradas neste mês.';
+
+  /* De onde veio */
+  const itens = entradasDoMes(resumoCursor);
+  const elEnt = document.getElementById('resEntradas');
+  if(itens.length === 0){
+    elEnt.innerHTML = '<div class="empty-state">Nenhuma entrada neste mês.</div>';
+  } else {
+    const rotuloFonte = {plano:'do plano', lancado:'lançado', milhas:'milhas', investir:'investimentos'};
+    elEnt.innerHTML = itens
+      .slice().sort((a,b)=>b.valor - a.valor)
+      .map(i=>`<div class="ent-row">
+        <div class="ent-ic">${i.em || '💼'}</div>
+        <div class="ent-mid">
+          <div class="ent-nome">${escapeHtml(i.rotulo)}</div>
+          <div class="ent-fonte">${rotuloFonte[i.fonte] || ''}${i.quem ? ' · '+escapeHtml(i.quem) : ''}</div>
+        </div>
+        <div class="ent-val">${fmt(i.valor)}</div>
+      </div>`).join('');
+  }
+
+  /* Para onde foi */
   const porQuem = {Felipe:0, Layla:0};
-  list.forEach(e=>{ porQuem[e.quem] = (porQuem[e.quem]||0) + e.valor; });
+  gastos.forEach(e=>{ porQuem[e.quem] = (porQuem[e.quem]||0) + e.valor; });
   document.getElementById('resFelipe').textContent = fmt(porQuem.Felipe||0);
   document.getElementById('resLayla').textContent = fmt(porQuem.Layla||0);
 
   const porCat = {};
-  list.forEach(e=>{ porCat[e.categoria] = (porCat[e.categoria]||0) + e.valor; });
+  gastos.forEach(e=>{ porCat[e.categoria] = (porCat[e.categoria]||0) + e.valor; });
   const maxCat = Math.max(1, ...Object.values(porCat));
   const catEl = document.getElementById('resCategorias');
   const catsUsed = CATEGORIES.filter(c=>porCat[c.id]);
   if(catsUsed.length===0){
-    catEl.innerHTML = '<div class="empty-state">Sem dados neste mês.</div>';
+    catEl.innerHTML = '<div class="empty-state">Nenhum gasto neste mês.</div>';
   } else {
     catEl.innerHTML = catsUsed.sort((a,b)=>(porCat[b.id]||0)-(porCat[a.id]||0)).map(c=>{
       const v = porCat[c.id]||0;
       const pct = Math.round((v/maxCat)*100);
+      const fatia = saiu > 0 ? Math.round((v/saiu)*100) : 0;
       return `<div class="bar-row">
-        <div class="bar-top"><span class="cat-name">${c.em} ${c.label}</span><span class="cat-val">${fmt(v)}</span></div>
+        <div class="bar-top"><span class="cat-name">${c.em} ${c.label}</span><span class="cat-val">${fmt(v)} <span class="cat-pct">${fatia}%</span></span></div>
         <div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div>
       </div>`;
     }).join('');
   }
 
-  const orcEl = document.getElementById('resOrcado');
+  /* O que vocês têm */
+  const pat = patrimonio();
+  const linhaD = (lbl,val,cls,strong)=>`
+    <div class="derived-row${strong?' strong':''}"><span class="d-lbl">${lbl}</span><span class="d-val ${cls||''}">${val}</span></div>`;
+  document.getElementById('resPatrimonio').innerHTML =
+    linhaD('Investimentos (líquido)', fmt(pat.cdbs)) +
+    linhaD('Milhas (estoque)', fmt(pat.milhas)) +
+    linhaD('Total', fmt(pat.total), 'bal-good', true);
+
+  /* Comparado ao plano */
   const renda = rendaDoCasal();
   const previsto = totalFixos() + totalVariaveis();
-  const restantePrevisto = previsto - total;
-  const restanteRenda = renda - total;
   const linha = (lbl, val)=>`
     <div class="bar-row">
       <div class="bar-top"><span class="cat-name">${lbl}</span><span class="cat-val ${val>=0?'bal-good':'bal-bad'}">${fmt(val)}</span></div>
     </div>`;
-  orcEl.innerHTML =
-    linha('Vs. gastos previstos no plano', restantePrevisto) +
-    linha('Vs. renda do casal', restanteRenda);
+  document.getElementById('resOrcado').innerHTML =
+    linha('Vs. gastos previstos no plano', previsto - saiu) +
+    linha('Vs. renda do casal', renda - saiu);
 
-  /* No último dia do mês, lembra de mandar o resumo. O site é estático e não
-     tem como enviar sozinho — isto é o aviso, o envio é no botão. */
   const hoje = new Date();
   const ultimoDia = new Date(hoje.getFullYear(), hoje.getMonth()+1, 0).getDate();
   const aviso = document.getElementById('avisoFimDoMes');
-  const olhandoMesAtual = monthKey(resumoCursor) === monthKey(hoje);
-  if(hoje.getDate() === ultimoDia && olhandoMesAtual){
+  if(hoje.getDate() === ultimoDia && monthKey(resumoCursor) === monthKey(hoje)){
     aviso.className = 'plan-warn';
     aviso.style.marginBottom = '10px';
     aviso.textContent = `Hoje é o último dia de ${monthLabel(hoje)} — bom momento de mandar o resumo.`;
@@ -1944,8 +2203,8 @@ function renderResumo(){
   }
 
   document.getElementById('budgetNote').textContent =
-    `Referência: renda do casal ${fmt(renda)}/mês e gastos previstos ${fmt(previsto)}/mês ` +
-    `(${fmt(totalFixos())} fixos + ${fmt(totalVariaveis())} variáveis). Editem na aba Plano.`;
+    `Renda combinada no plano: ${fmt(renda)}/mês. Gastos previstos: ${fmt(previsto)}/mês `
+    + `(${fmt(totalFixos())} fixos + ${fmt(totalVariaveis())} variáveis). Editem na aba Plano.`;
 
   renderBotoesContatos();
 }
