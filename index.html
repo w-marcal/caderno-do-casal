@@ -461,48 +461,6 @@
     main{max-width:1280px;}
     #tabResumo{grid-template-columns:repeat(3, minmax(0,1fr));}
   }
-
-  /* ---- sonhos de viagem ---- */
-  .sonho-barra{display:flex; align-items:center; gap:8px; margin-bottom:14px; flex-wrap:wrap;}
-  .sonho-abas{display:flex; gap:6px; flex:1; overflow-x:auto; padding-bottom:2px;}
-  .sonho-aba{
-    padding:8px 14px; border-radius:20px; border:1.5px solid var(--line); background:var(--paper-card);
-    font-size:13px; font-weight:600; color:var(--ink-soft); white-space:nowrap;
-  }
-  .sonho-aba.sel{background:var(--ink); color:var(--paper-card); border-color:var(--ink); box-shadow:var(--sh-2);}
-  .sonho-novo{
-    padding:8px 13px; border-radius:20px; border:1.5px dashed var(--line);
-    background:none; font-size:12.5px; font-weight:600; color:var(--ink-soft); white-space:nowrap;
-  }
-  .sonho-topo{display:flex; justify-content:space-between; align-items:flex-start; gap:10px;}
-  .sonho-nome{font-family:'Fraunces',serif; font-weight:600; font-size:24px; line-height:1.15; margin-top:2px;}
-  .sonho-quando{
-    font-family:'JetBrains Mono',monospace; font-size:10.5px; text-transform:uppercase; letter-spacing:.08em;
-    padding:5px 10px; border-radius:20px; background:rgba(255,255,255,.12); white-space:nowrap;
-  }
-  .plan-item.quitado{opacity:.62;}
-  .plan-item.quitado .plan-nome{text-decoration:line-through;}
-  #tabSonhos select{font-size:13px; padding:8px 9px;}
-
-  /* sete abas cabem apertadas no celular */
-  @media (max-width: 899px){
-    nav.tabbar button{font-size:9.5px; padding:10px 1px 8px; letter-spacing:0;}
-    nav.tabbar button .ico{font-size:16px;}
-  }
-  @media (min-width: 900px){
-    #tabSonhos{display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:18px; align-items:start;}
-    #tabSonhos > .card{margin-bottom:0;}
-    .sonho-barra, #sonhoCorpo{grid-column:1 / -1;}
-    #sonhoCorpo{display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:18px; align-items:start;}
-    #sonhoCorpo > .card{margin-bottom:0;}
-    #sonhoCorpo > .card.destaque{grid-column:1 / -1;}
-  }
-
-  .aviso-legado{
-    background:var(--sage-bg); border-radius:10px; padding:11px 13px; margin:14px 0 4px;
-    font-size:12.5px; line-height:1.55; color:var(--ink); text-align:left;
-  }
-  .aviso-legado strong{color:var(--sage);}
 </style>
 </head>
 <body>
@@ -510,8 +468,8 @@
 <div id="lockScreen" class="lock hidden">
   <div class="lock-card">
     <div class="cover-eyebrow" style="color:var(--stamp)">Conta a Dois</div>
-    <h2 id="lockTitulo">Entrar</h2>
-    <p id="lockDesc">Entrem com a conta de vocês.</p>
+    <h2>Entrar</h2>
+    <p>Entrem com a conta de vocês.</p>
 
     <label style="text-align:left">E-mail</label>
     <input id="loginEmail" type="email" inputmode="email" autocomplete="username" placeholder="voce@exemplo.com">
@@ -521,7 +479,6 @@
 
     <div id="lockErr" class="err"></div>
     <button class="btn-primary" id="lockBtn" onclick="entrar()">Entrar</button>
-    <button class="btn-ghost" style="width:100%" id="linkCadastro" onclick="alternarCadastro()">Criar um acesso novo</button>
     <button class="btn-ghost" style="width:100%" onclick="recuperarSenha()">Esqueci a senha</button>
     <div class="save-msg" id="lockMsg"></div>
   </div>
@@ -532,33 +489,9 @@
   <div class="lock-card"><p style="margin:0">Abrindo…</p></div>
 </div>
 
-<div id="telaConta" class="lock hidden">
-  <div class="lock-card">
-    <div class="cover-eyebrow" style="color:var(--stamp)">Conta a Dois</div>
-    <h2>Criar o espaço de vocês</h2>
-    <p>Um espaço guarda os lançamentos, o plano, as milhas e os investimentos de um casal. Só quem vocês convidarem entra.</p>
-
-    <label style="text-align:left">Nome do espaço</label>
-    <input type="text" id="novoNomeConta" placeholder="ex: Nossa casa, Conta a Dois">
-
-    <label style="text-align:left">Seu nome</label>
-    <input type="text" id="novoPessoa1" placeholder="ex: Felipe">
-
-    <label style="text-align:left">Nome do seu par</label>
-    <input type="text" id="novoPessoa2" placeholder="ex: Layla">
-
-    <div id="avisoLegado" class="hidden"></div>
-    <div id="contaErr" class="err"></div>
-    <button class="btn-primary" id="btnCriarConta" onclick="criarEspaco()">Criar espaço</button>
-    <button class="btn-ghost" style="width:100%" onclick="sair()">Sair</button>
-  </div>
-  <p class="share-hint">Se você foi convidado por alguém, entre com o mesmo e-mail que recebeu o convite e o app junta vocês automaticamente.</p>
-</div>
-
-
 <div id="app" class="hidden">
   <header class="cover">
-    <div class="cover-eyebrow">&nbsp;</div>
+    <div class="cover-eyebrow">Felipe &amp; Layla</div>
     <h1 class="cover-title">Conta a Dois</h1>
     <div class="cover-sub" id="headerSub">carregando…</div>
   </header>
@@ -575,7 +508,10 @@
           </div>
 
           <div class="section-label">Quem está lançando</div>
-          <div class="who-toggle" id="quemToggle"></div>
+          <div class="who-toggle">
+            <button class="who-btn sel" id="whoFelipe" onclick="setWho('Felipe')">Felipe</button>
+            <button class="who-btn" id="whoLayla" onclick="setWho('Layla')">Layla</button>
+          </div>
 
           <label>Valor</label>
           <div class="valor-row">
@@ -642,8 +578,8 @@
           <div class="section-label">Para onde foi</div>
           <div id="resCategorias"></div>
           <div class="split-row" style="margin-top:14px">
-            <div class="split-card"><div class="who" id="resFelipeLabel">—</div><div class="amt" id="resFelipe">R$ 0</div></div>
-            <div class="split-card"><div class="who" id="resLaylaLabel">—</div><div class="amt" id="resLayla">R$ 0</div></div>
+            <div class="split-card"><div class="who">Felipe gastou</div><div class="amt" id="resFelipe">R$ 0</div></div>
+            <div class="split-card"><div class="who">Layla gastou</div><div class="amt" id="resLayla">R$ 0</div></div>
           </div>
         </div>
 
@@ -740,29 +676,7 @@
         </div>
 
         <div class="card">
-          <div class="section-label">Quem tem acesso</div>
-          <div id="acessoInfo"></div>
-
-          <label>Convidar por e-mail</label>
-          <input type="text" id="convidarEmail" inputmode="email" placeholder="email@dapessoa.com">
-          <button class="btn-ghost" id="btnConvidar" style="width:100%; margin-top:8px" onclick="convidar()">Enviar convite</button>
-          <div class="plan-hint" style="margin-top:8px">A pessoa cria o acesso com esse mesmo e-mail e cai direto neste espaço. O convite vale uma vez.</div>
-          <div class="save-msg" id="convidarMsg"></div>
-        </div>
-
-        <div class="card">
-          <div class="section-label">Nomes</div>
-          <label>Nome do espaço</label>
-          <input type="text" id="editNomeConta">
-          <label>Primeira pessoa</label>
-          <input type="text" id="editPessoa1">
-          <label>Segunda pessoa</label>
-          <input type="text" id="editPessoa2">
-          <button class="btn-ghost" style="width:100%; margin-top:10px" onclick="salvarNomesDaConta()">Salvar nomes</button>
-        </div>
-
-        <div class="card">
-          <div class="section-label">Conta de acesso</div>
+          <div class="section-label">Conta</div>
           <div class="plan-hint" id="contaEmail" style="margin-bottom:10px"></div>
           <button class="btn-ghost" style="width:100%; margin:0" onclick="sair()">Sair deste aparelho</button>
         </div>
@@ -866,31 +780,17 @@
         <div class="save-msg" id="investMsg"></div>
       </section>
 
-      <!-- SONHOS -->
-      <section id="tabSonhos" class="hidden">
-        <div class="sonho-barra">
-          <div id="sonhoAbas" class="sonho-abas"></div>
-          <button class="sonho-novo" onclick="novoSonho()">+ novo sonho</button>
-        </div>
-        <div id="sonhoCorpo"></div>
-        <div class="save-bar">
-          <button id="sonhosSaveBtn" onclick="salvarSonhos()" disabled>Tudo salvo</button>
-        </div>
-        <div class="save-msg" id="sonhosMsg"></div>
-      </section>
-
     </main>
   </div>
 
   <nav class="tabbar">
-    <div class="side-brand">Conta a Dois<small>&nbsp;</small></div>
+    <div class="side-brand">Conta a Dois<small>Felipe &amp; Layla</small></div>
     <button class="active" id="navResumo" onclick="showTab('resumo')"><span class="ico">◆</span>Painel</button>
     <button id="navLancar" onclick="showTab('lancar')"><span class="ico">✎</span>Lançar</button>
     <button id="navExtrato" onclick="showTab('extrato')"><span class="ico">📜</span>Extrato</button>
     <button id="navPlano" onclick="showTab('plano')"><span class="ico">⚖</span>Plano</button>
     <button id="navMilhas" onclick="showTab('milhas')"><span class="ico">✈</span>Milhas</button>
     <button id="navInvestir" onclick="showTab('investir')"><span class="ico">▲</span>Investir</button>
-    <button id="navSonhos" onclick="showTab('sonhos')"><span class="ico">🌍</span>Sonhos</button>
   </nav>
 </div>
 
@@ -932,51 +832,17 @@ auth.onAuthStateChanged(user=>{
     return;
   }
   usuarioAtual = user || null;
+  document.getElementById('carregando').classList.add('hidden');
   if(user){
+    document.getElementById('lockScreen').classList.add('hidden');
+    document.getElementById('app').classList.remove('hidden');
     document.getElementById('loginSenha').value = '';
-    abrirParaUsuario(user);
+    if(!appIniciado){ appIniciado = true; boot(); }
   } else {
-    mostrarSomente('lockScreen');
+    document.getElementById('app').classList.add('hidden');
+    document.getElementById('lockScreen').classList.remove('hidden');
   }
 });
-
-/* Depois do login: descobre a conta da pessoa. Quem ainda nao tem
-   (nem foi convidado) vai para a tela de criar o espaco. */
-/* Deixa uma tela so no ar. Antes, uma falha no boot trazia o login de
-   volta sem esconder o app, e as duas telas apareciam empilhadas. */
-function mostrarSomente(id){
-  ['carregando','lockScreen','telaConta','app'].forEach(t=>{
-    document.getElementById(t).classList.toggle('hidden', t !== id);
-  });
-}
-
-async function abrirParaUsuario(user){
-  mostrarSomente('carregando');
-  let situacao;
-  try{
-    situacao = await resolverConta(user);
-  }catch(e){
-    console.error('Não foi possível abrir a conta:', e);
-    mostrarSomente('lockScreen');
-    document.getElementById('lockErr').textContent =
-      'Não foi possível abrir sua conta' + (e && e.code ? ' (' + e.code + ')' : '') + '.';
-    return;
-  }
-  if(situacao === 'sem-conta'){ mostrarTelaConta(); return; }
-  mostrarSomente('app');
-  if(!appIniciado){
-    appIniciado = true;
-    /* O app ja esta na tela: um erro daqui em diante vira aviso no
-       cabecalho, nao expulsa ninguem de volta para o login. */
-    try{
-      await boot();
-    }catch(e){
-      console.error('Falha ao carregar os dados:', e);
-      document.getElementById('headerSub').textContent =
-        'Erro ao carregar' + (e && e.code ? ' (' + e.code + ')' : '') + ' — recarregue a página.';
-    }
-  }
-}
 
 function mensagemDeErro(e){
   const cod = e && e.code || '';
@@ -990,123 +856,23 @@ function mensagemDeErro(e){
   return 'E-mail ou senha incorretos.';
 }
 
-/* ---------- criar acesso e espaço ---------- */
-
-let modoCadastro = false;
-function alternarCadastro(){
-  modoCadastro = !modoCadastro;
-  document.getElementById('lockTitulo').textContent = modoCadastro ? 'Criar acesso' : 'Entrar';
-  document.getElementById('lockDesc').textContent = modoCadastro
-    ? 'Escolha um e-mail e uma senha de pelo menos 6 caracteres.'
-    : 'Entrem com a conta de vocês.';
-  document.getElementById('lockBtn').textContent = modoCadastro ? 'Criar acesso' : 'Entrar';
-  document.getElementById('linkCadastro').textContent = modoCadastro
-    ? 'Já tenho acesso — entrar' : 'Criar um acesso novo';
-  document.getElementById('lockErr').textContent = '';
-  document.getElementById('lockMsg').textContent = '';
-  document.getElementById('loginSenha').autocomplete = modoCadastro ? 'new-password' : 'current-password';
-}
-
 async function entrar(){
   const email = document.getElementById('loginEmail').value.trim();
   const senha = document.getElementById('loginSenha').value;
   const err = document.getElementById('lockErr');
   err.textContent = '';
   if(!email || !senha){ err.textContent = 'Preencha o e-mail e a senha.'; return; }
-  if(modoCadastro && senha.length < 6){ err.textContent = 'A senha precisa de pelo menos 6 caracteres.'; return; }
   const btn = document.getElementById('lockBtn');
-  const rotulo = btn.textContent;
   btn.disabled = true;
-  btn.textContent = modoCadastro ? 'Criando…' : 'Entrando…';
+  btn.textContent = 'Entrando…';
   try{
-    if(modoCadastro) await auth.createUserWithEmailAndPassword(email, senha);
-    else await auth.signInWithEmailAndPassword(email, senha);
+    await auth.signInWithEmailAndPassword(email, senha);
   }catch(e){
-    console.error('Falha no acesso:', e.code);
+    console.error('Falha no login:', e.code);
     err.textContent = mensagemDeErro(e);
   }
   btn.disabled = false;
-  btn.textContent = rotulo;
-}
-
-function mostrarTelaConta(){
-  mostrarSomente('telaConta');
-  avisarSobreHistorico();
-}
-
-/* Se a pessoa tem historico do tempo em que o app era de um casal so,
-   avisa que nada sera perdido — a tela sozinha parecia um recomeco. */
-async function avisarSobreHistorico(){
-  const el = document.getElementById('avisoLegado');
-  if(!el) return;
-  let lancamentos = 0, temPlano = false;
-  try{
-    const antigos = await db.collection('lancamentos').get();
-    lancamentos = antigos.size;
-  }catch(e){ /* sem permissao = nao ha historico desta pessoa */ }
-  for(const nome of ['orcamento','milhas','investimentos']){
-    try{
-      const d = await db.collection('caderno').doc(nome).get();
-      if(d.exists) temPlano = true;
-    }catch(e){}
-  }
-  if(!lancamentos && !temPlano){ el.className = 'hidden'; return; }
-  const partes = [];
-  if(lancamentos) partes.push(lancamentos + (lancamentos === 1 ? ' lançamento' : ' lançamentos'));
-  if(temPlano) partes.push('seu plano, milhas e investimentos');
-  el.className = 'aviso-legado';
-  el.innerHTML = '<strong>Encontramos o que você já tinha:</strong> ' + partes.join(' e ')
-    + '. Assim que criar o espaço, tudo isso vem para dentro dele automaticamente. Nada é apagado.';
-}
-
-async function criarEspaco(){
-  const nome = document.getElementById('novoNomeConta').value.trim();
-  const p1 = document.getElementById('novoPessoa1').value.trim();
-  const p2 = document.getElementById('novoPessoa2').value.trim();
-  const err = document.getElementById('contaErr');
-  err.textContent = '';
-  if(!nome){ err.textContent = 'Dê um nome ao espaço.'; return; }
-  if(!p1 || !p2){ err.textContent = 'Preencha os dois nomes.'; return; }
-  if(p1.toLowerCase() === p2.toLowerCase()){ err.textContent = 'Os dois nomes precisam ser diferentes.'; return; }
-  const btn = document.getElementById('btnCriarConta');
-  btn.disabled = true;
-  btn.textContent = 'Criando…';
-  try{
-    await criarConta(nome, p1, p2);
-    mostrarSomente('app');
-    if(!appIniciado){
-      appIniciado = true;
-      try{ await boot(); }
-      catch(e){
-        console.error('Falha ao carregar depois de criar:', e);
-        document.getElementById('headerSub').textContent = 'Erro ao carregar — recarregue a página.';
-      }
-    }
-  }catch(e){
-    console.error('Não foi possível criar o espaço:', e);
-    err.textContent = 'Não foi possível criar. Tente de novo.';
-    btn.disabled = false;
-    btn.textContent = 'Criar espaço';
-  }
-}
-
-/* Quem lançou: os nomes vêm da conta, não são mais fixos no código. */
-function buildQuemToggle(){
-  const alvo = document.getElementById('quemToggle');
-  if(!alvo) return;
-  const gente = pessoas();
-  if(gente.indexOf(selectedWho) < 0) selectedWho = gente[0];
-  alvo.innerHTML = gente.map(n=>
-    `<button class="who-btn${n===selectedWho?' sel':''}" onclick="setWho('${escapeHtml(n)}')">${escapeHtml(n)}</button>`
-  ).join('');
-  const f = document.getElementById('resFelipeLabel');
-  if(f) f.textContent = gente[0] + ' gastou';
-  const l = document.getElementById('resLaylaLabel');
-  if(l) l.textContent = gente[1] + ' gastou';
-}
-function setWho(w){
-  selectedWho = w;
-  buildQuemToggle();
+  btn.textContent = 'Entrar';
 }
 
 async function recuperarSenha(){
@@ -1134,140 +900,10 @@ async function sair(){
 document.getElementById('loginSenha').addEventListener('keydown', e=>{ if(e.key==='Enter') entrar(); });
 document.getElementById('loginEmail').addEventListener('keydown', e=>{ if(e.key==='Enter') entrar(); });
 
-/* ---------- conta do casal ----------
-   Cada casal tem uma conta propria. Tudo (lancamentos, plano, milhas,
-   investimentos) mora dentro dela, e as regras do Firestore so deixam
-   membros entrar. Ninguem ve a conta de ninguem. */
-
-let contaAtual = null;   // {id, nome, membros, pessoas}
-
-function contaRef(){ return db.collection('contas').doc(contaAtual.id); }
-function lancRef(){ return contaRef().collection('lancamentos'); }
-function cfgRef(nome){ return contaRef().collection('config').doc(nome); }
-
-function pessoas(){
-  return (contaAtual && contaAtual.pessoas && contaAtual.pessoas.length)
-    ? contaAtual.pessoas : ['Eu', 'Par'];
-}
-
-/* Descobre em qual conta a pessoa esta: a que ja usa, a que foi convidada,
-   ou nenhuma (ai o app pede para criar). */
-async function resolverConta(user){
-  const meu = await db.collection('usuarios').doc(user.uid).get();
-  if(meu.exists && meu.data().contaId){
-    const ok = await carregarConta(meu.data().contaId);
-    if(ok) return 'pronta';
-  }
-  const email = (user.email || '').toLowerCase();
-  const convite = await db.collection('convites').doc(email).get();
-  if(convite.exists && convite.data().contaId){
-    await entrarPorConvite(convite.data().contaId, email);
-    return 'pronta';
-  }
-  return 'sem-conta';
-}
-
-async function carregarConta(contaId){
-  const snap = await db.collection('contas').doc(contaId).get();
-  if(!snap.exists) return false;
-  const d = snap.data() || {};
-  contaAtual = {
-    id: contaId,
-    nome: d.nome || 'Nossa conta',
-    membros: d.membros || [],
-    pessoas: Array.isArray(d.pessoas) && d.pessoas.length ? d.pessoas : ['Eu','Par']
-  };
-  return true;
-}
-
-/* Entra numa conta existente: acrescenta a si mesmo aos membros e queima
-   o convite, para ele nao servir duas vezes. */
-async function entrarPorConvite(contaId, email){
-  const ref = db.collection('contas').doc(contaId);
-  const snap = await ref.get();
-  if(!snap.exists) throw new Error('conta do convite nao existe');
-  const membros = (snap.data().membros || []).slice();
-  if(membros.indexOf(usuarioAtual.uid) < 0) membros.push(usuarioAtual.uid);
-  await ref.update({ membros });
-  await db.collection('usuarios').doc(usuarioAtual.uid).set({
-    contaId, email, entrouEm: new Date().toISOString()
-  });
-  try{ await db.collection('convites').doc(email).delete(); }catch(e){ console.warn(e); }
-  await carregarConta(contaId);
-}
-
-/* Cria uma conta nova, com quem esta criando como unico membro. */
-async function criarConta(nomeDaConta, nomeDePessoa1, nomeDePessoa2){
-  const ref = db.collection('contas').doc();
-  await ref.set({
-    nome: nomeDaConta,
-    membros: [usuarioAtual.uid],
-    pessoas: [nomeDePessoa1, nomeDePessoa2],
-    criadoEm: new Date().toISOString()
-  });
-  await db.collection('usuarios').doc(usuarioAtual.uid).set({
-    contaId: ref.id, email: (usuarioAtual.email||'').toLowerCase(),
-    entrouEm: new Date().toISOString()
-  });
-  await carregarConta(ref.id);
-}
-
-/* Convite: guardado pelo e-mail de quem foi chamado. Quando essa pessoa
-   entrar (criando conta ou fazendo login), o app acha e junta os dois. */
-async function convidarParaConta(email){
-  const alvo = String(email||'').trim().toLowerCase();
-  if(!alvo || alvo.indexOf('@') < 0) throw new Error('e-mail inválido');
-  await db.collection('convites').doc(alvo).set({
-    contaId: contaAtual.id,
-    convidadoPor: (usuarioAtual.email||'').toLowerCase(),
-    criadoEm: new Date().toISOString()
-  });
-}
-async function cancelarConvite(email){
-  await db.collection('convites').doc(String(email).toLowerCase()).delete();
-}
-
-/* ---------- migracao dos dados antigos ----------
-   Antes das contas separadas, tudo vivia em caminhos unicos. Quem consegue
-   ler aqueles caminhos (so os dois e-mails originais, pelas regras) traz o
-   historico para dentro da conta nova. Roda uma vez. */
-async function migrarLegadoParaConta(){
-  let algo = false;
-  try{
-    const antigos = await db.collection('lancamentos').get();
-    if(!antigos.empty){
-      let lote = db.batch();
-      let n = 0;
-      for(const d of antigos.docs){
-        lote.set(lancRef().doc(d.id), d.data());
-        n++;
-        if(n % 400 === 0){ await lote.commit(); lote = db.batch(); }
-      }
-      await lote.commit();
-      algo = true;
-      console.log('migrados ' + antigos.size + ' lancamentos');
-    }
-  }catch(e){ console.warn('sem lancamentos antigos para migrar:', e.code || e.message); }
-
-  for(const nome of ['orcamento','milhas','investimentos']){
-    try{
-      const velho = await db.collection('caderno').doc(nome).get();
-      if(velho.exists){
-        const destino = await cfgRef(nome).get();
-        if(!destino.exists){
-          await cfgRef(nome).set(velho.data());
-          algo = true;
-          console.log('migrado: ' + nome);
-        }
-      }
-    }catch(e){ console.warn('sem ' + nome + ' antigo:', e.code || e.message); }
-  }
-  if(algo){
-    try{ await contaRef().update({ migradoEm: new Date().toISOString() }); }catch(e){}
-  }
-  return algo;
-}
-
+/* Coleção onde cada lançamento é um documento próprio.
+   Assim os dois podem lançar ao mesmo tempo sem um sobrescrever o outro. */
+const LANC = 'lancamentos';
+function lancRef(){ return db.collection(LANC); }
 
 const CATEGORIES = [
   {id:'viagem', em:'✈️', label:'Viagem'},
@@ -1288,48 +924,78 @@ const CATEGORIES = [
   {id:'contrib', em:'🤍', label:'Contrib.'},
   {id:'outros', em:'✦', label:'Outros'},
 ];
-/* Plano/orcamento em branco: cada casal preenche o seu na aba Plano.
-   Os totais (renda, fixos, sobra) sao sempre calculados, nunca guardados,
-   para nao ficarem desatualizados a cada edicao. */
+/* Plano/orçamento — valores iniciais informados pelo Felipe em ago/2026.
+   Tudo isto é editável na aba "Plano" e fica salvo no Firestore, compartilhado
+   entre os dois. Os totais (renda certa, fixos, sobra) NÃO são guardados: são
+   calculados a partir dos campos, senão ficariam desatualizados a cada edição. */
+/* Categorias de entrada: dinheiro chegando, nao saindo. */
+const CATEGORIAS_ENTRADA = [
+  {id:'salario',    em:'💼', label:'Salário'},
+  {id:'loja',       em:'🏷️', label:'Loja'},
+  {id:'freela',     em:'🧰', label:'Freela'},
+  {id:'venda',      em:'💱', label:'Venda'},
+  {id:'reembolso',  em:'↩️', label:'Reembolso'},
+  {id:'presente',   em:'🎁', label:'Presente'},
+  {id:'rendimento', em:'▲', label:'Rendimento'},
+  {id:'outra',      em:'✦', label:'Outra'}
+];
+let tipoLanc = 'gasto';
+function catsDoTipo(){ return tipoLanc === 'entrada' ? CATEGORIAS_ENTRADA : CATEGORIES; }
+function acharCategoria(id, tipo){
+  const lista = tipo === 'entrada' ? CATEGORIAS_ENTRADA : CATEGORIES;
+  return lista.find(c=>c.id===id) || {em:'✦', label:id||'—'};
+}
+function ehEntrada(e){ return e && e.tipo === 'entrada'; }
+
 const PLANO_PADRAO = {
-  observacao: '',
-  atualizadoEm: '',
+  observacao: 'Valores informados por Felipe em ago/2026. Atualizar sempre que salário, contas ou renda da loja mudarem.',
+  atualizadoEm: '2026-08-17',
   renda: [
-    {nome:'Salário', valor:0, ativo:true, obs:''},
-    {nome:'Outra renda', valor:0, ativo:false, obs:''}
+    {nome:'Salário Layla', valor:2650, ativo:true, obs:'faixa informada: R$ 2.500 a R$ 2.800'},
+    {nome:'Loja virtual (PT)', valor:1666.67, ativo:true, obs:'R$ 20.000/ano ÷ 12'},
+    {nome:'Salário Felipe (banco)', valor:3750, ativo:false, obs:'Parado desde mar/2026 — aguardando reintegração após demissão. Faixa: R$ 3.500 a R$ 4.000'}
   ],
   fixos: [
-    {nome:'Aluguel / financiamento', valor:0, obs:''},
-    {nome:'Condomínio', valor:0, obs:''},
-    {nome:'Luz', valor:0, obs:''},
-    {nome:'Água', valor:0, obs:''},
-    {nome:'Internet', valor:0, obs:''},
-    {nome:'Celular', valor:0, obs:''},
-    {nome:'Assinaturas', valor:0, obs:''}
+    {nome:'Condomínio (inclui água)', valor:280, obs:''},
+    {nome:'Financiamento do imóvel', valor:450, obs:''},
+    {nome:'Luz', valor:280, obs:''},
+    {nome:'Internet', valor:115, obs:''},
+    {nome:'Celular', valor:90, obs:'daria para baixar para R$ 60'},
+    {nome:'Netflix', valor:40, obs:''},
+    {nome:'Seguro do cartão', valor:60, obs:''},
+    {nome:'Seguro residencial', valor:60, obs:''}
   ],
   variaveis: [
-    {nome:'Alimentação / mercado', valor:0, obs:''}
+    {nome:'Alimentação / mercado', valor:1300, obs:''}
   ],
-  extrasObs: 'Dinheiro que entra uma vez só — não conte com ele para pagar gasto fixo.',
-  extras: [],
+  extrasObs: 'Não são renda recorrente — não usar para cobrir gastos fixos mensais.',
+  extras: [
+    {nome:'INSS recebido', valor:3000, obs:'março/2026'},
+    {nome:'Adiantamento do banco', valor:3000, obs:'referente a 3 meses'}
+  ],
   retroativo: {
-    meses: [],
-    estimativaPorMes: 0,
-    status: ''
+    meses:['abril','maio','junho','julho','agosto'],
+    estimativaPorMes:3750,
+    status:'Ainda não confirmado pelo banco'
   },
+  /* Telefones ficam vazios de propósito: o repositório é público, então os
+     números são digitados no app e guardados no Firestore, nunca no código. */
+  contatos: [
+    {nome:'Felipe', telefone:''},
+    {nome:'Layla', telefone:''}
+  ],
   destino: [
     {nome:'Reserva de emergência', pct:50},
     {nome:'Quitar dívidas', pct:20},
-    {nome:'Investir', pct:15},
+    {nome:'Reinvestir na loja', pct:15},
     {nome:'Lazer / viagem', pct:15}
-  ],
-  contatos: []
+  ]
 };
 let plano = JSON.parse(JSON.stringify(PLANO_PADRAO));
 let planoSujo = false;   // há edições ainda não salvas?
 
 let selectedCat = 'viagem';
-let selectedWho = '';
+let selectedWho = 'Felipe';
 let entries = [];
 /* Sempre no dia 1: evita que "mês anterior" pule um mês quando hoje é dia 29-31. */
 function inicioDoMes(d){ return new Date(d.getFullYear(), d.getMonth(), 1); }
@@ -1363,37 +1029,15 @@ function monthLabel(d){
 /* ---------- boot ---------- */
 async function boot(){
   buildCatGrid();
-  buildQuemToggle();
   document.getElementById('fData').valueAsDate = new Date();
   document.getElementById('milData').valueAsDate = new Date();
   setMilTipo('venda');
-  aplicarNomeDaConta();
-  /* Traz o historico de antes das contas separadas, se houver e se esta
-     pessoa puder ler (pelas regras, so os dois e-mails originais). */
   try{
-    await migrarLegadoParaConta();
+    await migrarSeNecessario();
   }catch(e){
-    console.warn('nada a migrar:', e && (e.code || e.message));
+    console.error('Não foi possível migrar os lançamentos antigos:', e);
   }
-  const partes = [
-    ['lançamentos', assinarLancamentos], ['plano', assinarPlano],
-    ['milhas', assinarMilhas], ['investimentos', assinarInvestimentos], ['sonhos', assinarSonhos]
-  ];
-  const r = await Promise.allSettled(partes.map(([,fn])=>fn()));
-  const falhou = r.map((x,i)=>x.status==='rejected' ? partes[i][0] : null).filter(Boolean);
-  if(falhou.length){
-    console.error('não carregaram:', falhou);
-    document.getElementById('headerSub').textContent = 'Não carregou: ' + falhou.join(', ');
-  }
-}
-
-function aplicarNomeDaConta(){
-  const nome = contaAtual ? contaAtual.nome : 'Conta a Dois';
-  const gente = pessoas().join(' & ');
-  document.querySelector('header.cover .cover-eyebrow').textContent = gente;
-  document.querySelector('header.cover .cover-title').textContent = nome;
-  const marca = document.querySelector('.side-brand');
-  if(marca) marca.innerHTML = escapeHtml(nome) + '<small>' + escapeHtml(gente) + '</small>';
+  await Promise.all([ assinarLancamentos(), assinarPlano(), assinarMilhas(), assinarInvestimentos() ]);
 }
 
 function setTipoLanc(t){
@@ -1419,12 +1063,46 @@ function buildCatGrid(){
   });
 }
 
-
+function setWho(w){
+  selectedWho = w;
+  document.getElementById('whoFelipe').classList.toggle('sel', w==='Felipe');
+  document.getElementById('whoLayla').classList.toggle('sel', w==='Layla');
+}
 
 /* ---------- storage ---------- */
 
-/* Escuta a coleção em tempo real: o que um lançar no celular
-   aparece no do outro sem precisar recarregar a página. */
+/* Converte o formato antigo (um único documento com todos os lançamentos em
+   JSON) para um documento por lançamento. Roda dentro de uma transação, então
+   é seguro mesmo se os dois abrirem o app ao mesmo tempo: o primeiro migra, o
+   segundo enxerga a marca "migradoEm" e não faz nada. O documento antigo é
+   mantido intacto como backup. */
+async function migrarSeNecessario(){
+  await ensureAuth();
+  const legadoRef = db.collection('caderno').doc('entries');
+  await db.runTransaction(async tx=>{
+    const snap = await tx.get(legadoRef);
+    if(!snap.exists) return;
+    const dados = snap.data() || {};
+    if(dados.migradoEm || !dados.value) return;
+    let antigos = [];
+    try{ antigos = JSON.parse(dados.value) || []; }catch(e){ antigos = []; }
+    antigos.forEach(e=>{
+      if(!e || !e.id || !e.data) return;
+      tx.set(lancRef().doc(String(e.id)), {
+        valor: Number(e.valor) || 0,
+        categoria: e.categoria || 'outros',
+        quem: e.quem || 'Felipe',
+        desc: e.desc || '',
+        data: e.data,
+        criadoEm: e.data
+      });
+    });
+    tx.update(legadoRef, { migradoEm: new Date().toISOString() });
+  });
+}
+
+/* Escuta a coleção em tempo real: o que a Layla lançar no celular dela
+   aparece aqui sem precisar recarregar a página. */
 let jaAssinou = false;
 function assinarLancamentos(){
   if(jaAssinou) return Promise.resolve();
@@ -1438,7 +1116,7 @@ function assinarLancamentos(){
           id: d.id,
           valor: Number(v.valor) || 0,
           categoria: v.categoria || 'outros',
-          quem: v.quem || pessoas()[0],
+          quem: v.quem || 'Felipe',
           tipo: v.tipo === 'entrada' ? 'entrada' : 'gasto',
           desc: v.desc || '',
           data: v.data || ''
@@ -1564,13 +1242,6 @@ function renderPlano(){
   document.getElementById('planoObs').value    = plano.observacao;
   document.getElementById('contaEmail').textContent =
     usuarioAtual ? 'Conectado como ' + usuarioAtual.email : '';
-  if(contaAtual){
-    const gente = pessoas();
-    document.getElementById('editNomeConta').value = contaAtual.nome;
-    document.getElementById('editPessoa1').value = gente[0] || '';
-    document.getElementById('editPessoa2').value = gente[1] || '';
-    renderAcesso();
-  }
 
   renderDestino();
   renderDerivados();
@@ -1701,11 +1372,11 @@ async function salvarPlano(){
   btn.disabled = true;
   plano.atualizadoEm = hojeISO();
   try{
-    await cfgRef('orcamento').set(plano);
+    await db.collection('caderno').doc('orcamento').set(plano);
     planoSujo = false;
     btn.textContent = 'Tudo salvo';
     msg.style.color = 'var(--sage)';
-    msg.textContent = '✓ Plano salvo — quem divide a conta já vê o mesmo.';
+    msg.textContent = '✓ Plano salvo — a Layla já vê a mesma coisa.';
     renderDerivados();
   }catch(e){
     console.error('Não foi possível salvar o plano:', e);
@@ -1722,14 +1393,14 @@ async function salvarPlano(){
 function assinarPlano(){
   return new Promise(resolve=>{
     let primeira = true;
-    cfgRef('orcamento').onSnapshot(async snap=>{
+    db.collection('caderno').doc('orcamento').onSnapshot(async snap=>{
       if(snap.exists){
         if(!planoSujo){
           plano = normalizarPlano(snap.data());
           renderPlano();
         }
       } else if(primeira){
-        try{ await cfgRef('orcamento').set(plano); }
+        try{ await db.collection('caderno').doc('orcamento').set(plano); }
         catch(e){ console.error('Não foi possível criar o plano inicial:', e); }
         renderPlano();
       }
@@ -1798,7 +1469,7 @@ function montarResumoTexto(){
   const gastos = gastosDoMes(resumoCursor);
   const saiu = gastos.reduce((s,e)=>s+e.valor,0);
   const entrou = totalEntradasDoMes(resumoCursor);
-  const porQuem = {}; pessoas().forEach(n=>porQuem[n]=0);
+  const porQuem = {Felipe:0, Layla:0};
   gastos.forEach(e=>{ porQuem[e.quem] = (porQuem[e.quem]||0) + e.valor; });
   const porCat = {};
   gastos.forEach(e=>{ porCat[e.categoria] = (porCat[e.categoria]||0) + e.valor; });
@@ -1810,8 +1481,7 @@ function montarResumoTexto(){
   linhas.push(`Saiu: *${fmt(saiu)}*`);
   linhas.push(`Sobrou: *${fmt(entrou - saiu)}*`);
   linhas.push('');
-  const gente = pessoas();
-  linhas.push(gente.map(n=>`${n} gastou ${fmt(porQuem[n]||0)}`).join('  |  '));
+  linhas.push(`Felipe gastou ${fmt(porQuem.Felipe||0)}  |  Layla gastou ${fmt(porQuem.Layla||0)}`);
 
   const itens = entradasDoMes(resumoCursor);
   if(itens.length){
@@ -1872,11 +1542,14 @@ function renderBotoesContatos(){
 const MILHAS_PADRAO = {
   atualizadoEm: '2026-08-17',
   programas: [
-    {nome:'Latam',  quantidade:0, milheiro:0},
-    {nome:'Smiles', quantidade:0, milheiro:0},
-    {nome:'Azul',   quantidade:0, milheiro:0},
-    {nome:'Livelo', quantidade:0, milheiro:0},
-    {nome:'Esfera', quantidade:0, milheiro:0}
+    {nome:'Latam',   quantidade:0, milheiro:0},
+    {nome:'Smiles',  quantidade:0, milheiro:0},
+    {nome:'Azul',    quantidade:0, milheiro:0},
+    {nome:'Esfera',  quantidade:0, milheiro:0},
+    {nome:'Livelo',  quantidade:0, milheiro:0},
+    {nome:'Aegean',  quantidade:0, milheiro:0},
+    {nome:'Revolut', quantidade:0, milheiro:0},
+    {nome:'Avios',   quantidade:0, milheiro:0}
   ],
   movimentos: []
 };
@@ -2127,7 +1800,7 @@ async function excluirMovimentoMilhas(id){
 
 async function persistirMilhas(){
   milhas.atualizadoEm = hojeISO();
-  await cfgRef('milhas').set(milhas);
+  await db.collection('caderno').doc('milhas').set(milhas);
   milhasSujo = false;
   const btn = document.getElementById('milSaveBtn');
   btn.disabled = true;
@@ -2153,14 +1826,14 @@ async function salvarMilhas(){
 function assinarMilhas(){
   return new Promise(resolve=>{
     let primeira = true;
-    cfgRef('milhas').onSnapshot(async snap=>{
+    db.collection('caderno').doc('milhas').onSnapshot(async snap=>{
       if(snap.exists){
         if(!milhasSujo){
           milhas = normalizarMilhas(snap.data());
           renderMilhas();
         }
       } else if(primeira){
-        try{ await cfgRef('milhas').set(milhas); }
+        try{ await db.collection('caderno').doc('milhas').set(milhas); }
         catch(e){ console.error('Não foi possível criar as milhas iniciais:', e); }
         renderMilhas();
       }
@@ -2436,7 +2109,7 @@ async function salvarInvestimentos(){
   btn.disabled = true;
   investimentos.atualizadoEm = hojeISO();
   try{
-    await cfgRef('investimentos').set(investimentos);
+    await db.collection('caderno').doc('investimentos').set(investimentos);
     investSujo = false;
     btn.textContent = 'Tudo salvo';
     msg.style.color = 'var(--sage)';
@@ -2453,14 +2126,14 @@ async function salvarInvestimentos(){
 function assinarInvestimentos(){
   return new Promise(resolve=>{
     let primeira = true;
-    cfgRef('investimentos').onSnapshot(async snap=>{
+    db.collection('caderno').doc('investimentos').onSnapshot(async snap=>{
       if(snap.exists){
         if(!investSujo){
           investimentos = normalizarInvestimentos(snap.data());
           renderInvestimentos();
         }
       } else if(primeira){
-        try{ await cfgRef('investimentos').set(investimentos); }
+        try{ await db.collection('caderno').doc('investimentos').set(investimentos); }
         catch(e){ console.error('Não foi possível criar os investimentos iniciais:', e); }
         renderInvestimentos();
       }
@@ -2541,527 +2214,9 @@ function patrimonio(){
   return { cdbs, milhas: estoqueMilhas, total: cdbs + estoqueMilhas };
 }
 
-/* ---------- quem tem acesso ao espaço ---------- */
-
-async function renderAcesso(){
-  const el = document.getElementById('acessoInfo');
-  if(!el || !contaAtual) return;
-  const gente = pessoas();
-  const quantos = (contaAtual.membros || []).length;
-  let pendente = '';
-  try{
-    const abertos = await db.collection('convites').where('contaId','==',contaAtual.id).get();
-    if(!abertos.empty){
-      pendente = abertos.docs.map(d=>`
-        <div class="ent-row">
-          <div class="ent-ic">✉️</div>
-          <div class="ent-mid">
-            <div class="ent-nome">${escapeHtml(d.id)}</div>
-            <div class="ent-fonte">convite aguardando</div>
-          </div>
-          <button class="plan-del" onclick="removerConvite('${escapeHtml(d.id)}')">✕</button>
-        </div>`).join('');
-    }
-  }catch(e){
-    /* a consulta por contaId pode ser barrada pelas regras; nao e critico */
-    console.warn('não consegui listar convites:', e.code || e.message);
-  }
-  el.innerHTML = `
-    <div class="derived" style="margin-bottom:12px">
-      <div class="derived-row"><span class="d-lbl">Espaço</span><span class="d-val">${escapeHtml(contaAtual.nome)}</span></div>
-      <div class="derived-row"><span class="d-lbl">Pessoas</span><span class="d-val">${escapeHtml(gente.join(' & '))}</span></div>
-      <div class="derived-row"><span class="d-lbl">Com acesso</span><span class="d-val">${quantos}</span></div>
-    </div>
-    ${pendente}`;
-}
-
-async function convidar(){
-  const campo = document.getElementById('convidarEmail');
-  const msg = document.getElementById('convidarMsg');
-  const email = campo.value.trim().toLowerCase();
-  msg.textContent = '';
-  if(!email || email.indexOf('@') < 0){
-    msg.style.color = 'var(--stamp)';
-    msg.textContent = 'Escreva um e-mail válido.';
-    return;
-  }
-  if(email === (usuarioAtual.email||'').toLowerCase()){
-    msg.style.color = 'var(--stamp)';
-    msg.textContent = 'Esse é o seu próprio e-mail.';
-    return;
-  }
-  const btn = document.getElementById('btnConvidar');
-  btn.disabled = true;
-  try{
-    await convidarParaConta(email);
-    msg.style.color = 'var(--sage)';
-    msg.textContent = '✓ Convite criado. Peça para essa pessoa criar o acesso com esse mesmo e-mail.';
-    campo.value = '';
-    renderAcesso();
-  }catch(e){
-    console.error('Não foi possível convidar:', e);
-    msg.style.color = 'var(--stamp)';
-    msg.textContent = 'Não foi possível convidar. Tente de novo.';
-  }
-  btn.disabled = false;
-}
-
-async function removerConvite(email){
-  if(!confirm(`Cancelar o convite de ${email}?`)) return;
-  try{
-    await cancelarConvite(email);
-    renderAcesso();
-  }catch(e){
-    console.error(e);
-    alert('Não foi possível cancelar.');
-  }
-}
-
-/* Renomear o espaço e as pessoas */
-async function salvarNomesDaConta(){
-  const nome = document.getElementById('editNomeConta').value.trim();
-  const p1 = document.getElementById('editPessoa1').value.trim();
-  const p2 = document.getElementById('editPessoa2').value.trim();
-  const msg = document.getElementById('convidarMsg');
-  if(!nome || !p1 || !p2){
-    msg.style.color = 'var(--stamp)';
-    msg.textContent = 'Preencha o nome do espaço e os dois nomes.';
-    return;
-  }
-  try{
-    await contaRef().update({ nome, pessoas: [p1, p2] });
-    contaAtual.nome = nome;
-    contaAtual.pessoas = [p1, p2];
-    aplicarNomeDaConta();
-    buildQuemToggle();
-    renderPainel();
-    renderAcesso();
-    msg.style.color = 'var(--sage)';
-    msg.textContent = '✓ Salvo.';
-  }catch(e){
-    console.error(e);
-    msg.style.color = 'var(--stamp)';
-    msg.textContent = 'Não foi possível salvar.';
-  }
-  setTimeout(()=>{ msg.textContent=''; }, 3000);
-}
-
-/* ---------- sonhos de viagem ----------
-   Cada sonho tem uma data e uma lista de itens (voo, hotel, visto, comida...).
-   Cada item pode ser pago de tres jeitos:
-     'guardar'  - juntar dinheiro e pagar a vista
-     'parcelar' - dividir no cartao
-     'caixa'    - dinheiro para gastar durante a viagem
-   A regra de ouro: nenhuma parcela pode vencer depois do embarque. Assim
-   ninguem viaja devendo, e ainda assim da para diluir o custo. */
-
-const CATEGORIAS_VIAGEM = [
-  {id:'voo',        em:'✈️', label:'Voo'},
-  {id:'hotel',      em:'🏨', label:'Hospedagem'},
-  {id:'comida',     em:'🍽️', label:'Comida'},
-  {id:'visto',      em:'📕', label:'Visto/Documentos'},
-  {id:'seguro',     em:'🛡️', label:'Seguro'},
-  {id:'passeios',   em:'🎟️', label:'Passeios'},
-  {id:'transporte', em:'🚕', label:'Transporte'},
-  {id:'compras',    em:'🛍️', label:'Compras'},
-  {id:'outros',     em:'✦', label:'Outros'}
-];
-const SONHOS_PADRAO = { sonhos: [], atualizadoEm: '' };
-let sonhos = JSON.parse(JSON.stringify(SONHOS_PADRAO));
-let sonhosSujo = false;
-let sonhoAberto = 0;
-
-function normalizarSonhos(v){
-  const base = JSON.parse(JSON.stringify(SONHOS_PADRAO));
-  if(!v || typeof v !== 'object') return base;
-  return {
-    atualizadoEm: String(v.atualizadoEm || ''),
-    sonhos: Array.isArray(v.sonhos) ? v.sonhos.map(s=>({
-      id: String(s && s.id || (Date.now()+'-'+Math.random().toString(36).slice(2,7))),
-      nome: String(s && s.nome || ''),
-      destino: String(s && s.destino || ''),
-      data: String(s && s.data || ''),
-      itens: Array.isArray(s && s.itens) ? s.itens.map(i=>({
-        id: String(i && i.id || (Date.now()+'-'+Math.random().toString(36).slice(2,7))),
-        nome: String(i && i.nome || ''),
-        categoria: String(i && i.categoria || 'outros'),
-        valor: Number(i && i.valor) || 0,
-        pago: Number(i && i.pago) || 0,
-        forma: ['guardar','parcelar','caixa'].indexOf(i && i.forma) >= 0 ? i.forma : 'guardar',
-        parcelas: Math.max(1, Number(i && i.parcelas) || 1),
-        inicioParcelas: String(i && i.inicioParcelas || '')
-      })) : []
-    })) : []
-  };
-}
-
-function mesesEntre(deISO, ateISO){
-  if(!deISO || !ateISO) return 0;
-  const a = new Date(deISO+'T00:00:00'), b = new Date(ateISO+'T00:00:00');
-  if(isNaN(a) || isNaN(b)) return 0;
-  return (b.getFullYear()-a.getFullYear())*12 + (b.getMonth()-a.getMonth());
-}
-function somaMeses(iso, n){
-  const d = new Date(iso+'T00:00:00');
-  if(isNaN(d)) return '';
-  d.setMonth(d.getMonth()+n);
-  return dataISO(d);
-}
-
-function calcularSonho(s){
-  const hoje = hojeISO();
-  const total = s.itens.reduce((acc,i)=>acc + i.valor, 0);
-  const pago = s.itens.reduce((acc,i)=>acc + Math.min(i.pago, i.valor), 0);
-  const falta = Math.max(0, total - pago);
-  const meses = Math.max(0, mesesEntre(hoje, s.data));
-
-  /* o que precisa virar dinheiro guardado */
-  const paraGuardar = s.itens.filter(i=>i.forma !== 'parcelar');
-  const faltaGuardar = paraGuardar.reduce((acc,i)=>acc + Math.max(0, i.valor - i.pago), 0);
-
-  /* o que ja esta comprometido em parcela mensal */
-  const parcelados = s.itens.filter(i=>i.forma === 'parcelar' && i.pago < i.valor);
-  const parcelaMensal = parcelados.reduce((acc,i)=>acc + (i.valor / Math.max(1, i.parcelas)), 0);
-
-  const guardarPorMes = meses > 0 ? faltaGuardar / meses : faltaGuardar;
-  const custoMensal = guardarPorMes + parcelaMensal;
-
-  /* regra de ouro: nenhuma parcela pode vencer depois do embarque */
-  const furam = parcelados.filter(i=>{
-    const inicio = i.inicioParcelas || hoje;
-    const fim = somaMeses(inicio, Math.max(1, i.parcelas) - 1);
-    return s.data && fim && fim > s.data;
-  });
-
-  return {
-    total, pago, falta, meses,
-    faltaGuardar, parcelaMensal, guardarPorMes, custoMensal,
-    pctPago: total > 0 ? Math.min(100, (pago/total)*100) : 0,
-    furam,
-    porCategoria: CATEGORIAS_VIAGEM.map(c=>({
-      cat: c,
-      valor: s.itens.filter(i=>i.categoria===c.id).reduce((acc,i)=>acc+i.valor, 0)
-    })).filter(x=>x.valor > 0)
-  };
-}
-
-/* Quanto sobra por mes hoje, segundo o plano — para dizer se o sonho cabe. */
-function sobraMensalDoPlano(){
-  return rendaDoCasal() - totalFixos() - totalVariaveis();
-}
-function renderSonhos(){
-  const abas = document.getElementById('sonhoAbas');
-  const corpo = document.getElementById('sonhoCorpo');
-  if(!abas) return;
-
-  if(sonhos.sonhos.length === 0){
-    abas.innerHTML = '';
-    corpo.innerHTML = '<div class="card"><div class="empty-state">Nenhum sonho ainda.<br><br>Crie o primeiro: para onde vocês querem ir e quando.</div></div>';
-    return;
-  }
-  if(sonhoAberto >= sonhos.sonhos.length) sonhoAberto = 0;
-
-  abas.innerHTML = sonhos.sonhos.map((s,i)=>
-    `<button class="sonho-aba${i===sonhoAberto?' sel':''}" onclick="abrirSonho(${i})">${escapeHtml(s.nome || 'Sem nome')}</button>`
-  ).join('');
-
-  const s = sonhos.sonhos[sonhoAberto];
-  const c = calcularSonho(s);
-  const sobra = sobraMensalDoPlano();
-  const cabe = sobra > 0 && c.custoMensal <= sobra;
-  const quandoTxt = s.data
-    ? (c.meses > 0 ? 'faltam ' + c.meses + (c.meses===1 ? ' mês' : ' meses') : 'é agora')
-    : 'sem data definida';
-
-  const alerta = c.furam.length ? `
-    <div class="card">
-      <div class="section-label">Atenção</div>
-      <div class="plan-warn" style="margin:0">
-        ${c.furam.map(i=>'As parcelas de "' + escapeHtml(i.nome||'item') + '" terminam depois da viagem.').join('<br>')}
-        <div style="font-weight:400; color:var(--ink-soft); margin-top:6px">
-          A ideia é embarcar sem dívida: reduza as parcelas ou antecipe o início.
-        </div>
-      </div>
-    </div>` : '';
-
-  const maior = c.porCategoria.length ? Math.max(...c.porCategoria.map(y=>y.valor)) : 1;
-  const porTipo = c.porCategoria.length ? `
-    <div class="card">
-      <div class="section-label">Por tipo de gasto</div>
-      ${c.porCategoria.slice().sort((a,b)=>b.valor-a.valor).map(x=>`
-        <div class="bar-row">
-          <div class="bar-top"><span class="cat-name">${x.cat.em} ${x.cat.label}</span><span class="cat-val">${fmt(x.valor)}</span></div>
-          <div class="bar-track"><div class="bar-fill" style="width:${Math.round((x.valor/maior)*100)}%"></div></div>
-        </div>`).join('')}
-    </div>` : '';
-
-  corpo.innerHTML = `
-    <div class="card destaque">
-      <div class="sonho-topo">
-        <div>
-          <div class="big-total-label">${escapeHtml(s.destino || 'destino a definir')}</div>
-          <div class="sonho-nome">${escapeHtml(s.nome || 'Sem nome')}</div>
-        </div>
-        <div class="sonho-quando">${quandoTxt}</div>
-      </div>
-      <div class="big-total-label" style="margin-top:14px">Falta juntar</div>
-      <div class="big-total">${fmt(c.falta)}</div>
-      <div class="barra-fluxo"><div class="barra-fluxo-fill" style="width:${c.pctPago.toFixed(1)}%"></div></div>
-      <div class="fluxo-nota">${fmt(c.pago)} de ${fmt(c.total)} · ${c.pctPago.toFixed(0)}% do sonho já pago</div>
-      <div class="fluxo-row">
-        <div class="fluxo-card entrou">
-          <div class="fx-lbl">Guardar por mês</div>
-          <div class="fx-amt">${fmt(c.guardarPorMes)}</div>
-        </div>
-        <div class="fluxo-card saiu">
-          <div class="fx-lbl">Parcelas por mês</div>
-          <div class="fx-amt">${fmt(c.parcelaMensal)}</div>
-        </div>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="section-label">Cabe no orçamento?</div>
-      <div class="derived">
-        <div class="derived-row"><span class="d-lbl">Custo do sonho por mês</span><span class="d-val">${fmt(c.custoMensal)}</span></div>
-        <div class="derived-row"><span class="d-lbl">Sobra hoje, pelo plano</span><span class="d-val">${fmt(sobra)}</span></div>
-        <div class="derived-row strong">
-          <span class="d-lbl">${cabe ? 'Sobra depois do sonho' : 'Falta por mês'}</span>
-          <span class="d-val ${cabe?'bal-good':'bal-bad'}">${fmt(Math.abs(sobra - c.custoMensal))}</span>
-        </div>
-      </div>
-      <div class="budget-note">${cabe
-        ? 'No ritmo atual vocês chegam lá com tudo pago.'
-        : 'Do jeito que está, não fecha. Dá para esticar a data, cortar item ou aumentar a renda no plano.'}</div>
-    </div>
-
-    ${alerta}
-
-    <div class="card">
-      <div class="section-label">O que a viagem inclui</div>
-      <div id="sonhoItens"></div>
-      <button class="plan-add" onclick="adicionarItemSonho()">+ adicionar item</button>
-    </div>
-
-    ${porTipo}
-
-    <div class="card">
-      <div class="section-label">Dados do sonho</div>
-      <label>Nome</label>
-      <input type="text" value="${escapeHtml(s.nome)}" oninput="editarSonho('nome', this.value)" placeholder="ex: Estados Unidos">
-      <label>Destino</label>
-      <input type="text" value="${escapeHtml(s.destino)}" oninput="editarSonho('destino', this.value)" placeholder="ex: Nova York e Orlando">
-      <label>Data da viagem</label>
-      <input type="date" value="${escapeHtml(s.data)}" onchange="editarSonho('data', this.value)">
-      <button class="btn-ghost" style="width:100%; margin-top:12px" onclick="removerSonho()">Apagar este sonho</button>
-    </div>`;
-
-  renderItensSonho();
-}
-
-function renderItensSonho(){
-  const s = sonhos.sonhos[sonhoAberto];
-  const el = document.getElementById('sonhoItens');
-  if(!el || !s) return;
-  const hoje = hojeISO();
-  el.innerHTML = s.itens.map((i,k)=>{
-    const cat = CATEGORIAS_VIAGEM.find(c=>c.id===i.categoria) || CATEGORIAS_VIAGEM[8];
-    const quitado = i.pago >= i.valor && i.valor > 0;
-    const fimParcelas = i.forma === 'parcelar' ? somaMeses(i.inicioParcelas || hoje, Math.max(1,i.parcelas)-1) : '';
-    const fura = i.forma === 'parcelar' && s.data && fimParcelas && fimParcelas > s.data;
-    const blocoParcela = i.forma === 'parcelar' ? `
-      <div class="mil-grid">
-        <div class="mil-field">
-          <div class="mil-lbl">Parcelas</div>
-          <div class="mil-box">
-            <input type="text" inputmode="numeric" value="${i.parcelas}" oninput="editarItemSonho(${k},'parcelas',this.value)">
-          </div>
-        </div>
-        <div class="mil-field">
-          <div class="mil-lbl">Primeira em</div>
-          <input type="date" value="${escapeHtml(i.inicioParcelas || hoje)}" onchange="editarItemSonho(${k},'inicioParcelas',this.value)">
-        </div>
-      </div>
-      <div class="mil-total" style="display:block">
-        <div style="display:flex; justify-content:space-between">
-          <span>${i.parcelas}x de ${fmt(i.valor / Math.max(1,i.parcelas))}</span>
-          <span class="${fura?'bal-bad':''}" style="font-size:11.5px">${fura ? 'termina depois da viagem' : 'última em ' + (fimParcelas||'—').split('-').reverse().join('/')}</span>
-        </div>
-      </div>` : `
-      <div class="mil-total">
-        <span>${i.forma === 'caixa' ? 'Dinheiro para gastar lá' : 'Falta guardar'}</span>
-        <span class="v">${fmt(Math.max(0, i.valor - i.pago))}</span>
-      </div>`;
-    return `
-    <div class="plan-item${quitado?' quitado':''}">
-      <div class="plan-head">
-        <span style="font-size:16px; margin-right:2px">${cat.em}</span>
-        <input class="plan-nome" type="text" value="${escapeHtml(i.nome)}" placeholder="o que é" oninput="editarItemSonho(${k},'nome',this.value)">
-        <button class="plan-del" onclick="removerItemSonho(${k})">✕</button>
-      </div>
-      <div class="mil-grid">
-        <div class="mil-field">
-          <div class="mil-lbl">Custo</div>
-          <div class="mil-box"><span>R$</span>
-            <input type="text" inputmode="decimal" value="${escapeHtml(numParaInput(i.valor))}" oninput="editarItemSonho(${k},'valor',this.value)">
-          </div>
-        </div>
-        <div class="mil-field">
-          <div class="mil-lbl">Já pago</div>
-          <div class="mil-box"><span>R$</span>
-            <input type="text" inputmode="decimal" value="${escapeHtml(numParaInput(i.pago))}" oninput="editarItemSonho(${k},'pago',this.value)">
-          </div>
-        </div>
-      </div>
-      <div class="mil-grid">
-        <div class="mil-field">
-          <div class="mil-lbl">Tipo</div>
-          <select onchange="editarItemSonho(${k},'categoria',this.value)">
-            ${CATEGORIAS_VIAGEM.map(c=>`<option value="${c.id}"${c.id===i.categoria?' selected':''}>${c.label}</option>`).join('')}
-          </select>
-        </div>
-        <div class="mil-field">
-          <div class="mil-lbl">Como pagar</div>
-          <select onchange="editarItemSonho(${k},'forma',this.value)">
-            <option value="guardar"${i.forma==='guardar'?' selected':''}>Guardar e pagar à vista</option>
-            <option value="parcelar"${i.forma==='parcelar'?' selected':''}>Parcelar</option>
-            <option value="caixa"${i.forma==='caixa'?' selected':''}>Levar em caixa</option>
-          </select>
-        </div>
-      </div>
-      ${blocoParcela}
-    </div>`;
-  }).join('') || '<div class="empty-state">Nenhum item ainda. Comece pelo voo.</div>';
-}
-
-function abrirSonho(i){ sonhoAberto = i; renderSonhos(); }
-function marcarSonhosSujo(){
-  sonhosSujo = true;
-  const b = document.getElementById('sonhosSaveBtn');
-  if(b){ b.disabled = false; b.textContent = 'Salvar sonhos'; }
-}
-function editarSonho(campo, valor){
-  const s = sonhos.sonhos[sonhoAberto];
-  if(!s) return;
-  s[campo] = valor;
-  marcarSonhosSujo();
-  if(campo === 'data') renderSonhos();
-  else atualizarCabecalhoSonho();
-}
-function atualizarCabecalhoSonho(){
-  const s = sonhos.sonhos[sonhoAberto];
-  if(!s) return;
-  const abas = document.querySelectorAll('#sonhoAbas .sonho-aba');
-  if(abas[sonhoAberto]) abas[sonhoAberto].textContent = s.nome || 'Sem nome';
-  const nomeEl = document.querySelector('.sonho-nome');
-  if(nomeEl) nomeEl.textContent = s.nome || 'Sem nome';
-  const destEl = document.querySelector('.sonho-topo .big-total-label');
-  if(destEl) destEl.textContent = s.destino || 'destino a definir';
-}
-function editarItemSonho(k, campo, valor){
-  const s = sonhos.sonhos[sonhoAberto];
-  if(!s || !s.itens[k]) return;
-  const numericos = ['valor','pago','parcelas'];
-  s.itens[k][campo] = numericos.indexOf(campo) >= 0 ? (parseValor(valor) || 0) : valor;
-  if(campo === 'parcelas') s.itens[k].parcelas = Math.max(1, Math.round(s.itens[k].parcelas));
-  marcarSonhosSujo();
-  if(campo === 'forma' || campo === 'categoria') renderSonhos();
-  else atualizarNumerosSonho();
-}
-/* atualiza so os numeros, para nao arrancar o foco de quem esta digitando */
-function atualizarNumerosSonho(){
-  const s = sonhos.sonhos[sonhoAberto];
-  if(!s) return;
-  const c = calcularSonho(s);
-  const grande = document.querySelector('#sonhoCorpo .big-total');
-  if(grande) grande.textContent = fmt(c.falta);
-  const barra = document.querySelector('#sonhoCorpo .barra-fluxo-fill');
-  if(barra) barra.style.width = c.pctPago.toFixed(1) + '%';
-  const nota = document.querySelector('#sonhoCorpo .fluxo-nota');
-  if(nota) nota.textContent = fmt(c.pago) + ' de ' + fmt(c.total) + ' · ' + c.pctPago.toFixed(0) + '% do sonho já pago';
-  const caixas = document.querySelectorAll('#sonhoCorpo .fluxo-card .fx-amt');
-  if(caixas[0]) caixas[0].textContent = fmt(c.guardarPorMes);
-  if(caixas[1]) caixas[1].textContent = fmt(c.parcelaMensal);
-}
-
-function novoSonho(){
-  sonhos.sonhos.push({
-    id: Date.now()+'-'+Math.random().toString(36).slice(2,7),
-    nome: '', destino: '', data: '', itens: []
-  });
-  sonhoAberto = sonhos.sonhos.length - 1;
-  marcarSonhosSujo();
-  renderSonhos();
-}
-function removerSonho(){
-  const s = sonhos.sonhos[sonhoAberto];
-  if(!confirm('Apagar o sonho "' + (s.nome || 'sem nome') + '" e todos os itens dele?')) return;
-  sonhos.sonhos.splice(sonhoAberto, 1);
-  sonhoAberto = 0;
-  marcarSonhosSujo();
-  renderSonhos();
-}
-function adicionarItemSonho(){
-  const s = sonhos.sonhos[sonhoAberto];
-  if(!s) return;
-  s.itens.push({
-    id: Date.now()+'-'+Math.random().toString(36).slice(2,7),
-    nome:'', categoria:'voo', valor:0, pago:0, forma:'guardar', parcelas:1, inicioParcelas:hojeISO()
-  });
-  marcarSonhosSujo();
-  renderSonhos();
-}
-function removerItemSonho(k){
-  const s = sonhos.sonhos[sonhoAberto];
-  const it = s.itens[k];
-  if(!confirm('Tirar "' + (it.nome || 'este item') + '" do sonho?')) return;
-  s.itens.splice(k,1);
-  marcarSonhosSujo();
-  renderSonhos();
-}
-
-async function salvarSonhos(){
-  const msg = document.getElementById('sonhosMsg');
-  const btn = document.getElementById('sonhosSaveBtn');
-  btn.disabled = true;
-  sonhos.atualizadoEm = hojeISO();
-  try{
-    await cfgRef('sonhos').set(sonhos);
-    sonhosSujo = false;
-    btn.textContent = 'Tudo salvo';
-    msg.style.color = 'var(--sage)';
-    msg.textContent = '✓ Sonhos salvos.';
-  }catch(e){
-    console.error('Não foi possível salvar os sonhos:', e);
-    btn.disabled = false;
-    msg.style.color = 'var(--stamp)';
-    msg.textContent = 'Não foi possível salvar. Tente de novo.';
-  }
-  setTimeout(()=>{ msg.textContent=''; }, 3000);
-}
-
-function assinarSonhos(){
-  return new Promise(resolve=>{
-    let primeira = true;
-    cfgRef('sonhos').onSnapshot(snap=>{
-      if(snap.exists && !sonhosSujo){
-        sonhos = normalizarSonhos(snap.data());
-        renderSonhos();
-      } else if(!snap.exists && primeira){
-        renderSonhos();
-      }
-      if(primeira){ primeira = false; resolve(); }
-    }, err=>{
-      console.error('Erro ao sincronizar os sonhos:', err);
-      renderSonhos();
-      if(primeira){ primeira = false; resolve(); }
-    });
-  });
-}
-
 /* ---------- tabs ---------- */
 function showTab(name){
-  ['Lancar','Extrato','Resumo','Plano','Milhas','Investir','Sonhos'].forEach(t=>{
+  ['Lancar','Extrato','Resumo','Plano','Milhas','Investir'].forEach(t=>{
     document.getElementById('tab'+t).classList.toggle('hidden', t.toLowerCase() !== name);
     document.getElementById('nav'+t).classList.toggle('active', t.toLowerCase() === name);
   });
@@ -3151,11 +2306,10 @@ function renderPainel(){
   }
 
   /* Para onde foi */
-  const porQuem = {}; pessoas().forEach(n=>porQuem[n]=0);
+  const porQuem = {Felipe:0, Layla:0};
   gastos.forEach(e=>{ porQuem[e.quem] = (porQuem[e.quem]||0) + e.valor; });
-  const gente = pessoas();
-  document.getElementById('resFelipe').textContent = fmt(porQuem[gente[0]]||0);
-  document.getElementById('resLayla').textContent = fmt(porQuem[gente[1]]||0);
+  document.getElementById('resFelipe').textContent = fmt(porQuem.Felipe||0);
+  document.getElementById('resLayla').textContent = fmt(porQuem.Layla||0);
 
   const porCat = {};
   gastos.forEach(e=>{ porCat[e.categoria] = (porCat[e.categoria]||0) + e.valor; });
