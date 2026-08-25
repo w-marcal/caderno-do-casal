@@ -512,6 +512,37 @@
   }
   .tut-secao label{margin-top:10px;}
   .tut-secao .valor-row input{font-size:16px;}
+
+  /* ---- calendario de feriados ---- */
+  .data-nota{font-size:11.5px; color:var(--ink-soft); margin-top:6px; line-height:1.5;}
+  .data-nota.alerta{color:var(--stamp); font-weight:600;}
+  .feriados-lista{
+    margin-top:10px; max-height:280px; overflow-y:auto;
+    border:1px solid var(--line); border-radius:10px; padding:4px 6px; background:#fff;
+  }
+  .feriado-ano{
+    font-family:'JetBrains Mono',monospace; font-size:10.5px; letter-spacing:.12em;
+    color:var(--ink-soft); padding:9px 6px 5px; position:sticky; top:0; background:#fff;
+    border-bottom:1px solid var(--line); margin-bottom:2px;
+  }
+  .feriado-item{
+    display:flex; align-items:center; gap:9px; width:100%; text-align:left;
+    background:none; border:none; padding:8px 6px; border-radius:7px;
+    border-bottom:1px dashed var(--line);
+  }
+  .feriado-item:last-child{border-bottom:none;}
+  .feriado-item:active{background:var(--sage-bg);}
+  .fer-data{
+    font-family:'JetBrains Mono',monospace; font-size:12.5px; font-weight:600;
+    color:var(--ink); width:44px; flex-shrink:0;
+  }
+  .fer-nome{flex:1; font-size:12.5px; font-weight:600; color:var(--ink); line-height:1.25;}
+  .fer-nome small{display:block; font-weight:400; font-size:10.5px; color:var(--ink-soft);}
+  .fer-tag{
+    font-size:9.5px; font-weight:700; text-transform:uppercase; letter-spacing:.05em;
+    padding:3px 7px; border-radius:20px; background:var(--sage-bg); color:var(--sage); white-space:nowrap;
+  }
+  .fer-tag.forte{background:var(--stamp-bg); color:var(--stamp);}
 </style>
 </head>
 <body>
@@ -2958,6 +2989,133 @@ function calcularSonho(s){
 function sobraMensalDoPlano(){
   return rendaDoCasal() - totalFixos() - totalVariaveis();
 }
+/* ---------- feriados nacionais para planejar a viagem ----------
+   Os mesmos usados no calculo dos investimentos, agora com nome e com a
+   leitura que interessa para viajar: em que dia da semana cai e se vira
+   feriadao emendando com o fim de semana. */
+
+const FERIADOS_FIXOS = [
+  ['01-01', 'Confraternização Universal'],
+  ['04-21', 'Tiradentes'],
+  ['05-01', 'Dia do Trabalho'],
+  ['09-07', 'Independência'],
+  ['10-12', 'Nossa Senhora Aparecida'],
+  ['11-02', 'Finados'],
+  ['11-15', 'Proclamação da República'],
+  ['11-20', 'Consciência Negra'],
+  ['12-25', 'Natal']
+];
+const FERIADOS_MOVEIS = [
+  [-48, 'Carnaval (segunda)'],
+  [-47, 'Carnaval (terça)'],
+  [-2,  'Sexta-feira Santa'],
+  [60,  'Corpus Christi']
+];
+const DIAS_SEMANA = ['domingo','segunda','terça','quarta','quinta','sexta','sábado'];
+
+function feriadosComNome(ano){
+  const lista = FERIADOS_FIXOS.map(([md, nome])=>({ data: ano+'-'+md, nome }));
+  const pascoa = domingoDePascoa(ano);
+  FERIADOS_MOVEIS.forEach(([delta, nome])=>{
+    const d = new Date(pascoa);
+    d.setDate(d.getDate()+delta);
+    lista.push({ data: dataISO(d), nome });
+  });
+  return lista.map(f=>{
+    const d = new Date(f.data+'T00:00:00');
+    const semana = d.getDay();
+    /* terça emenda a segunda; quinta emenda a sexta; segunda e sexta ja
+       grudam no fim de semana sozinhas */
+    let emenda = '';
+    if(semana === 2) emenda = 'emenda a segunda';
+    else if(semana === 4) emenda = 'emenda a sexta';
+    else if(semana === 1 || semana === 5) emenda = 'feriadão';
+    return Object.assign({}, f, {
+      semana, diaSemana: DIAS_SEMANA[semana],
+      emenda, util: semana !== 0 && semana !== 6
+    });
+  }).sort((a,b)=>a.data.localeCompare(b.data));
+}
+
+/* Feriados daqui para a frente, ate dez anos a partir de 2026. */
+function feriadosDaJanela(){
+  const hoje = hojeISO();
+  const primeiro = Math.max(2026, new Date(hoje+'T00:00:00').getFullYear());
+  const out = [];
+  for(let ano = primeiro; ano <= primeiro + 10; ano++){
+    feriadosComNome(ano).forEach(f=>{ if(f.data >= hoje) out.push(f); });
+  }
+  return out;
+}
+
+/* O que dizer sobre a data escolhida para a viagem. */
+function lerDataDaViagem(iso){
+  if(!iso) return '';
+  const d = new Date(iso+'T00:00:00');
+  if(isNaN(d)) return '';
+  const ano = d.getFullYear();
+  if(ano < 2026 || ano > 2100) return 'Ano fora do intervalo — confira a data.';
+  const doAno = feriadosComNome(ano);
+  const exato = doAno.find(f=>f.data === iso);
+  if(exato) return `${exato.nome} — cai numa ${exato.diaSemana}` + (exato.emenda ? ', ' + exato.emenda : '');
+  /* algum feriado por perto? ate 4 dias antes ou depois */
+  const perto = doAno.find(f=>Math.abs((new Date(f.data+'T00:00:00') - d) / 86400000) <= 4);
+  const semana = DIAS_SEMANA[d.getDay()];
+  if(perto){
+    const dias = Math.round((new Date(perto.data+'T00:00:00') - d) / 86400000);
+    const quando = dias === 0 ? 'no mesmo dia' : (dias > 0 ? `${dias} dia(s) depois` : `${-dias} dia(s) antes`);
+    return `Cai numa ${semana}. ${perto.nome} é ${quando}.`;
+  }
+  return `Cai numa ${semana}.`;
+}
+
+/* O campo de data aceita qualquer coisa enquanto se digita, inclusive ano
+   0002. Estes limites e a checagem impedem que isso vire a data da viagem. */
+function limiteDeData(){
+  const d = new Date();
+  return (d.getFullYear() + 10) + '-12-31';
+}
+function dataDeViagemValida(iso){
+  if(!iso) return true;
+  const d = new Date(iso+'T00:00:00');
+  if(isNaN(d)) return false;
+  const ano = d.getFullYear();
+  return ano >= 2026 && ano <= new Date().getFullYear() + 10;
+}
+
+let mostrandoFeriados = false;
+function alternarFeriados(){
+  mostrandoFeriados = !mostrandoFeriados;
+  renderFeriados();
+}
+function renderFeriados(){
+  const caixa = document.getElementById('feriadosCaixa');
+  const botao = document.getElementById('btnFeriados');
+  if(!caixa) return;
+  botao.textContent = mostrandoFeriados ? 'Esconder feriados' : 'Ver feriados nacionais';
+  if(!mostrandoFeriados){ caixa.className = 'hidden'; return; }
+  caixa.className = 'feriados-lista';
+  const lista = feriadosDaJanela();
+  let anoAtual = '';
+  caixa.innerHTML = lista.map(f=>{
+    const ano = f.data.slice(0,4);
+    const cabecalho = ano !== anoAtual ? `<div class="feriado-ano">${ano}</div>` : '';
+    anoAtual = ano;
+    const [a,m,d] = f.data.split('-');
+    return cabecalho + `
+      <button class="feriado-item" onclick="usarDataDoFeriado('${f.data}')">
+        <span class="fer-data">${d}/${m}</span>
+        <span class="fer-nome">${f.nome}<small>${f.diaSemana}</small></span>
+        ${f.emenda ? `<span class="fer-tag${f.emenda==='feriadão'?' forte':''}">${f.emenda}</span>` : '<span></span>'}
+      </button>`;
+  }).join('') || '<div class="empty-state">Sem feriados no período.</div>';
+}
+function usarDataDoFeriado(iso){
+  editarSonho('data', iso);
+  mostrandoFeriados = false;
+  renderSonhos();
+}
+
 function renderSonhos(){
   const abas = document.getElementById('sonhoAbas');
   const corpo = document.getElementById('sonhoCorpo');
@@ -3061,7 +3219,11 @@ function renderSonhos(){
       <label>Destino</label>
       <input type="text" value="${escapeHtml(s.destino)}" oninput="editarSonho('destino', this.value)" placeholder="ex: Nova York e Orlando">
       <label>Data da viagem</label>
-      <input type="date" value="${escapeHtml(s.data)}" onchange="editarSonho('data', this.value)">
+      <input type="date" value="${escapeHtml(s.data)}" min="${hojeISO()}" max="${limiteDeData()}"
+             onchange="editarSonho('data', this.value)">
+      <div class="data-nota${s.data && !dataDeViagemValida(s.data) ? ' alerta' : ''}" id="dataNota">${escapeHtml(lerDataDaViagem(s.data))}</div>
+      <button class="plan-add" id="btnFeriados" style="margin-top:10px" onclick="alternarFeriados()">Ver feriados nacionais</button>
+      <div id="feriadosCaixa" class="hidden"></div>
       <button class="btn-ghost" style="width:100%; margin-top:12px" onclick="removerSonho()">Apagar este sonho</button>
     </div>`;
 
@@ -3152,10 +3314,25 @@ function marcarSonhosSujo(){
 function editarSonho(campo, valor){
   const s = sonhos.sonhos[sonhoAberto];
   if(!s) return;
+  if(campo === 'data'){
+    const nota = document.getElementById('dataNota');
+    /* Ano de um digito so ainda esta sendo digitado: nao guarda e nao
+       reclama, so espera a pessoa terminar. */
+    if(valor && !dataDeViagemValida(valor)){
+      if(nota){
+        nota.className = 'data-nota alerta';
+        nota.textContent = 'Use uma data entre hoje e ' + limiteDeData().slice(0,4) + '.';
+      }
+      return;
+    }
+    s.data = valor;
+    marcarSonhosSujo();
+    renderSonhos();
+    return;
+  }
   s[campo] = valor;
   marcarSonhosSujo();
-  if(campo === 'data') renderSonhos();
-  else atualizarCabecalhoSonho();
+  atualizarCabecalhoSonho();
 }
 function atualizarCabecalhoSonho(){
   const s = sonhos.sonhos[sonhoAberto];
