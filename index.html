@@ -497,6 +497,12 @@
     #sonhoCorpo > .card{margin-bottom:0;}
     #sonhoCorpo > .card.destaque{grid-column:1 / -1;}
   }
+
+  .aviso-legado{
+    background:var(--sage-bg); border-radius:10px; padding:11px 13px; margin:14px 0 4px;
+    font-size:12.5px; line-height:1.55; color:var(--ink); text-align:left;
+  }
+  .aviso-legado strong{color:var(--sage);}
 </style>
 </head>
 <body>
@@ -541,6 +547,7 @@
     <label style="text-align:left">Nome do seu par</label>
     <input type="text" id="novoPessoa2" placeholder="ex: Layla">
 
+    <div id="avisoLegado" class="hidden"></div>
     <div id="contaErr" class="err"></div>
     <button class="btn-primary" id="btnCriarConta" onclick="criarEspaco()">Criar espaço</button>
     <button class="btn-ghost" style="width:100%" onclick="sair()">Sair</button>
@@ -1012,6 +1019,32 @@ function mostrarTelaConta(){
   document.getElementById('lockScreen').classList.add('hidden');
   document.getElementById('app').classList.add('hidden');
   document.getElementById('telaConta').classList.remove('hidden');
+  avisarSobreHistorico();
+}
+
+/* Se a pessoa tem historico do tempo em que o app era de um casal so,
+   avisa que nada sera perdido — a tela sozinha parecia um recomeco. */
+async function avisarSobreHistorico(){
+  const el = document.getElementById('avisoLegado');
+  if(!el) return;
+  let lancamentos = 0, temPlano = false;
+  try{
+    const antigos = await db.collection('lancamentos').get();
+    lancamentos = antigos.size;
+  }catch(e){ /* sem permissao = nao ha historico desta pessoa */ }
+  for(const nome of ['orcamento','milhas','investimentos']){
+    try{
+      const d = await db.collection('caderno').doc(nome).get();
+      if(d.exists) temPlano = true;
+    }catch(e){}
+  }
+  if(!lancamentos && !temPlano){ el.className = 'hidden'; return; }
+  const partes = [];
+  if(lancamentos) partes.push(lancamentos + (lancamentos === 1 ? ' lançamento' : ' lançamentos'));
+  if(temPlano) partes.push('seu plano, milhas e investimentos');
+  el.className = 'aviso-legado';
+  el.innerHTML = '<strong>Encontramos o que você já tinha:</strong> ' + partes.join(' e ')
+    + '. Assim que criar o espaço, tudo isso vem para dentro dele automaticamente. Nada é apagado.';
 }
 
 async function criarEspaco(){
