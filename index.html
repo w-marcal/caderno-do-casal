@@ -543,6 +543,60 @@
     padding:3px 7px; border-radius:20px; background:var(--sage-bg); color:var(--sage); white-space:nowrap;
   }
   .fer-tag.forte{background:var(--stamp-bg); color:var(--stamp);}
+
+  /* ---- guia rápido ---- */
+  .guia-fundo{
+    position:fixed; inset:0; z-index:60;
+    background:rgba(31,58,61,.55); backdrop-filter:blur(3px);
+    display:flex; align-items:center; justify-content:center; padding:20px;
+  }
+  .guia-caixa{
+    background:var(--paper-card); border-radius:16px; padding:26px 22px 18px;
+    width:100%; max-width:400px; position:relative; text-align:center;
+    box-shadow:0 18px 50px -18px rgba(0,0,0,.5);
+  }
+  .guia-fechar{
+    position:absolute; top:10px; right:12px; background:none; border:none;
+    color:var(--line); font-size:17px; padding:4px 6px;
+  }
+  .guia-fechar:active{color:var(--stamp);}
+  .guia-icone{
+    font-size:30px; width:62px; height:62px; margin:0 auto 12px;
+    display:flex; align-items:center; justify-content:center;
+    background:var(--sage-bg); border-radius:50%;
+  }
+  .guia-passo{
+    font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--ink-soft);
+  }
+  .guia-titulo{font-family:'Fraunces',serif; font-size:21px; margin:6px 0 10px; line-height:1.2;}
+  .guia-texto{font-size:14px; line-height:1.6; color:var(--ink); margin:0;}
+  .guia-texto b{color:var(--stamp);}
+  .guia-dica{
+    font-size:12px; line-height:1.5; color:var(--ink-soft);
+    background:var(--paper); border-radius:9px; padding:9px 11px; margin-top:14px;
+  }
+  .guia-pontos{display:flex; gap:6px; justify-content:center; margin:16px 0 14px;}
+  .guia-ponto{
+    width:7px; height:7px; border-radius:50%; border:none; padding:0;
+    background:var(--line); transition:background .15s, width .15s;
+  }
+  .guia-ponto.sel{background:var(--stamp); width:18px; border-radius:4px;}
+  .guia-botoes{display:flex; gap:9px;}
+  .guia-botoes .btn-ghost{flex:0 0 96px; margin:0;}
+  .guia-botoes .btn-primary{flex:1;}
+  .guia-pular{
+    background:none; border:none; color:var(--ink-soft); font-size:11.5px;
+    margin-top:10px; padding:6px; text-decoration:underline;
+  }
+  .btn-ajuda{
+    position:absolute; top:22px; right:20px;
+    width:32px; height:32px; border-radius:50%; border:1px solid rgba(255,255,255,.25);
+    background:rgba(255,255,255,.10); color:var(--paper-card);
+    font-size:15px; font-weight:700; line-height:1;
+  }
+  .btn-ajuda:active{background:rgba(255,255,255,.22);}
+  @media (min-width: 900px){ .btn-ajuda{top:26px; right:40px;} }
 </style>
 </head>
 <body>
@@ -635,6 +689,7 @@
     <div class="cover-eyebrow">&nbsp;</div>
     <h1 class="cover-title">Conta a Dois</h1>
     <div class="cover-sub" id="headerSub">carregando…</div>
+    <button class="btn-ajuda" onclick="abrirGuia()" aria-label="Como usar" title="Como usar">?</button>
   </header>
 
   <div class="wrap">
@@ -955,6 +1010,19 @@
 
     </main>
   </div>
+
+<div id="guia" class="guia-fundo hidden">
+  <div class="guia-caixa">
+    <button class="guia-fechar" onclick="fecharGuia()" aria-label="fechar">✕</button>
+    <div id="guiaCorpo"></div>
+    <div class="guia-pontos" id="guiaPontos"></div>
+    <div class="guia-botoes">
+      <button class="btn-ghost" id="guiaVoltar" onclick="andarGuia(-1)">Voltar</button>
+      <button class="btn-primary" id="guiaAvancar">Próximo</button>
+    </div>
+    <button class="guia-pular" onclick="fecharGuia()">Pular o guia</button>
+  </div>
+</div>
 
   <nav class="tabbar">
     <div class="side-brand">Conta a Dois<small>&nbsp;</small></div>
@@ -1606,6 +1674,7 @@ async function boot(){
     ['milhas', assinarMilhas], ['investimentos', assinarInvestimentos], ['sonhos', assinarSonhos]
   ];
   const r = await Promise.allSettled(partes.map(([,fn])=>fn()));
+  talvezMostrarGuia();
   const falhou = r.map((x,i)=>x.status==='rejected' ? partes[i][0] : null).filter(Boolean);
   if(falhou.length){
     console.error('não carregaram:', falhou);
@@ -3443,6 +3512,100 @@ function assinarSonhos(){
       if(primeira){ primeira = false; resolve(); }
     });
   });
+}
+
+/* ---------- guia rápido ----------
+   Aparece sozinho na primeira vez de cada pessoa, em cada aparelho, e fica
+   disponivel para sempre no "?" do cabecalho. */
+
+const PASSOS_GUIA = [
+  {
+    icone: '✎',
+    titulo: 'Lançar é o dia a dia',
+    texto: 'Gastou? Abra <b>Lançar</b>, escolha <b>Gasto</b>, digite o valor, toque na categoria e pronto. Recebeu dinheiro? O mesmo lugar, mas escolhendo <b>Entrada</b>.',
+    dica: 'O valor aceita vírgula: 12,50 ou 1.234,56.'
+  },
+  {
+    icone: '⚖',
+    titulo: 'Comece pelo Plano',
+    texto: 'É a base de tudo. Em <b>Plano</b> vocês dizem quanto entra por mês e quais são as contas fixas. Sem isso o app não tem como dizer se sobrou ou faltou.',
+    dica: 'Dá para desmarcar uma renda que não está entrando agora, sem apagar o valor.'
+  },
+  {
+    icone: '◆',
+    titulo: 'O Painel responde a pergunta',
+    texto: 'Quanto entrou, quanto saiu, quanto sobrou — e de onde veio cada real. Ele junta sozinho o salário do plano, as entradas lançadas, a venda de milhas e o rendimento dos investimentos.',
+    dica: 'Use as setas no topo para ver outros meses.'
+  },
+  {
+    icone: '✈',
+    titulo: 'Milhas e Investir',
+    texto: 'Em <b>Milhas</b>, o saldo de cada programa e quanto vale o milheiro; ao vender ou usar, o saldo baixa sozinho. Em <b>Investir</b>, os CDBs mostram o valor <b>líquido</b>, já com IR e IOF descontados.',
+    dica: 'Confira o CDI de vez em quando: o cálculo todo depende dele.'
+  },
+  {
+    icone: '🌍',
+    titulo: 'Sonhos é para viajar',
+    texto: 'Coloque o destino, a data e o que a viagem inclui: voo, hotel, comida, visto. O app calcula <b>quanto guardar por mês</b> e avisa se alguma parcela terminaria depois do embarque.',
+    dica: 'O botão de feriados ajuda a escolher uma data que emenda com fim de semana.'
+  },
+  {
+    icone: '👥',
+    titulo: 'Chame quem divide a conta',
+    texto: 'Em <b>Plano → Quem tem acesso</b>, convide pelo e-mail. A pessoa cria o acesso com aquele mesmo e-mail e passa a ver e lançar no mesmo espaço, em tempo real.',
+    dica: 'Tudo o que um lança aparece no celular do outro na hora.'
+  }
+];
+
+let passoGuia = 0;
+
+function chaveDoGuia(){
+  return 'guia-visto-' + (usuarioAtual ? usuarioAtual.uid : 'anon');
+}
+function guiaJaVisto(){
+  try{ return localStorage.getItem(chaveDoGuia()) === 'sim'; }
+  catch(e){ return false; }
+}
+function marcarGuiaVisto(){
+  try{ localStorage.setItem(chaveDoGuia(), 'sim'); }catch(e){}
+}
+
+function abrirGuia(){
+  passoGuia = 0;
+  document.getElementById('guia').classList.remove('hidden');
+  renderGuia();
+}
+function fecharGuia(){
+  document.getElementById('guia').classList.add('hidden');
+  marcarGuiaVisto();
+}
+function andarGuia(delta){
+  passoGuia = Math.max(0, Math.min(PASSOS_GUIA.length - 1, passoGuia + delta));
+  renderGuia();
+}
+function irParaPassoGuia(i){ passoGuia = i; renderGuia(); }
+
+function renderGuia(){
+  const p = PASSOS_GUIA[passoGuia];
+  const ultimo = passoGuia === PASSOS_GUIA.length - 1;
+  document.getElementById('guiaCorpo').innerHTML = `
+    <div class="guia-icone">${p.icone}</div>
+    <div class="guia-passo">Passo ${passoGuia + 1} de ${PASSOS_GUIA.length}</div>
+    <h3 class="guia-titulo">${p.titulo}</h3>
+    <p class="guia-texto">${p.texto}</p>
+    <div class="guia-dica">${p.dica}</div>`;
+  document.getElementById('guiaPontos').innerHTML = PASSOS_GUIA.map((_,i)=>
+    `<button class="guia-ponto${i===passoGuia?' sel':''}" onclick="irParaPassoGuia(${i})" aria-label="passo ${i+1}"></button>`
+  ).join('');
+  document.getElementById('guiaVoltar').style.visibility = passoGuia === 0 ? 'hidden' : 'visible';
+  document.getElementById('guiaAvancar').textContent = ultimo ? 'Começar' : 'Próximo';
+  document.getElementById('guiaAvancar').onclick = ultimo ? fecharGuia : ()=>andarGuia(1);
+}
+
+/* Chamado depois que o app carrega: so aparece para quem nunca viu. */
+function talvezMostrarGuia(){
+  if(guiaJaVisto()) return;
+  setTimeout(abrirGuia, 600);
 }
 
 /* ---------- tabs ---------- */
