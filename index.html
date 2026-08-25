@@ -936,30 +936,45 @@ auth.onAuthStateChanged(user=>{
     document.getElementById('loginSenha').value = '';
     abrirParaUsuario(user);
   } else {
-    document.getElementById('carregando').classList.add('hidden');
-    document.getElementById('app').classList.add('hidden');
-    document.getElementById('telaConta').classList.add('hidden');
-    document.getElementById('lockScreen').classList.remove('hidden');
+    mostrarSomente('lockScreen');
   }
 });
 
 /* Depois do login: descobre a conta da pessoa. Quem ainda nao tem
    (nem foi convidado) vai para a tela de criar o espaco. */
+/* Deixa uma tela so no ar. Antes, uma falha no boot trazia o login de
+   volta sem esconder o app, e as duas telas apareciam empilhadas. */
+function mostrarSomente(id){
+  ['carregando','lockScreen','telaConta','app'].forEach(t=>{
+    document.getElementById(t).classList.toggle('hidden', t !== id);
+  });
+}
+
 async function abrirParaUsuario(user){
-  document.getElementById('lockScreen').classList.add('hidden');
-  document.getElementById('carregando').classList.remove('hidden');
+  mostrarSomente('carregando');
+  let situacao;
   try{
-    const situacao = await resolverConta(user);
-    if(situacao === 'sem-conta'){ mostrarTelaConta(); return; }
-    document.getElementById('carregando').classList.add('hidden');
-    document.getElementById('telaConta').classList.add('hidden');
-    document.getElementById('app').classList.remove('hidden');
-    if(!appIniciado){ appIniciado = true; await boot(); }
+    situacao = await resolverConta(user);
   }catch(e){
     console.error('Não foi possível abrir a conta:', e);
-    document.getElementById('carregando').classList.add('hidden');
-    document.getElementById('lockScreen').classList.remove('hidden');
-    document.getElementById('lockErr').textContent = 'Não foi possível abrir sua conta. Tente de novo.';
+    mostrarSomente('lockScreen');
+    document.getElementById('lockErr').textContent =
+      'Não foi possível abrir sua conta' + (e && e.code ? ' (' + e.code + ')' : '') + '.';
+    return;
+  }
+  if(situacao === 'sem-conta'){ mostrarTelaConta(); return; }
+  mostrarSomente('app');
+  if(!appIniciado){
+    appIniciado = true;
+    /* O app ja esta na tela: um erro daqui em diante vira aviso no
+       cabecalho, nao expulsa ninguem de volta para o login. */
+    try{
+      await boot();
+    }catch(e){
+      console.error('Falha ao carregar os dados:', e);
+      document.getElementById('headerSub').textContent =
+        'Erro ao carregar' + (e && e.code ? ' (' + e.code + ')' : '') + ' — recarregue a página.';
+    }
   }
 }
 
@@ -1015,10 +1030,7 @@ async function entrar(){
 }
 
 function mostrarTelaConta(){
-  document.getElementById('carregando').classList.add('hidden');
-  document.getElementById('lockScreen').classList.add('hidden');
-  document.getElementById('app').classList.add('hidden');
-  document.getElementById('telaConta').classList.remove('hidden');
+  mostrarSomente('telaConta');
   avisarSobreHistorico();
 }
 
@@ -1061,9 +1073,15 @@ async function criarEspaco(){
   btn.textContent = 'Criando…';
   try{
     await criarConta(nome, p1, p2);
-    document.getElementById('telaConta').classList.add('hidden');
-    document.getElementById('app').classList.remove('hidden');
-    if(!appIniciado){ appIniciado = true; await boot(); }
+    mostrarSomente('app');
+    if(!appIniciado){
+      appIniciado = true;
+      try{ await boot(); }
+      catch(e){
+        console.error('Falha ao carregar depois de criar:', e);
+        document.getElementById('headerSub').textContent = 'Erro ao carregar — recarregue a página.';
+      }
+    }
   }catch(e){
     console.error('Não foi possível criar o espaço:', e);
     err.textContent = 'Não foi possível criar. Tente de novo.';
@@ -1357,7 +1375,16 @@ async function boot(){
   }catch(e){
     console.warn('nada a migrar:', e && (e.code || e.message));
   }
-  await Promise.all([ assinarLancamentos(), assinarPlano(), assinarMilhas(), assinarInvestimentos(), assinarSonhos() ]);
+  const partes = [
+    ['lançamentos', assinarLancamentos], ['plano', assinarPlano],
+    ['milhas', assinarMilhas], ['investimentos', assinarInvestimentos], ['sonhos', assinarSonhos]
+  ];
+  const r = await Promise.allSettled(partes.map(([,fn])=>fn()));
+  const falhou = r.map((x,i)=>x.status==='rejected' ? partes[i][0] : null).filter(Boolean);
+  if(falhou.length){
+    console.error('não carregaram:', falhou);
+    document.getElementById('headerSub').textContent = 'Não carregou: ' + falhou.join(', ');
+  }
 }
 
 function aplicarNomeDaConta(){
