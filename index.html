@@ -597,6 +597,58 @@
   }
   .btn-ajuda:active{background:rgba(255,255,255,.22);}
   @media (min-width: 900px){ .btn-ajuda{top:26px; right:40px;} }
+
+  /* ---- central de ajuda ---- */
+  .ajuda-caixa{
+    background:var(--paper-card); border-radius:16px; padding:22px 18px 14px;
+    width:100%; max-width:460px; max-height:86vh; position:relative;
+    display:flex; flex-direction:column;
+    box-shadow:0 18px 50px -18px rgba(0,0,0,.5);
+  }
+  .ajuda-titulo{font-family:'Fraunces',serif; font-size:22px; font-weight:600; padding-right:30px;}
+  .ajuda-voltar{
+    background:none; border:none; color:var(--stamp); font-size:13px; font-weight:600;
+    padding:0 0 4px; text-align:left;
+  }
+  #ajudaBusca{margin:12px 0 6px; font-size:14px;}
+  #ajudaCorpo{overflow-y:auto; flex:1; margin-top:8px; padding-right:2px;}
+
+  .ajuda-item{
+    display:flex; align-items:center; gap:11px; width:100%; text-align:left;
+    background:none; border:none; border-bottom:1px dashed var(--line);
+    padding:12px 4px; border-radius:8px;
+  }
+  .ajuda-item:last-child{border-bottom:none;}
+  .ajuda-item:active{background:var(--paper);}
+  .ajuda-item-icone{
+    font-size:17px; width:36px; height:36px; flex-shrink:0; border-radius:10px;
+    background:var(--paper); display:flex; align-items:center; justify-content:center;
+  }
+  .ajuda-item-txt{flex:1; min-width:0;}
+  .ajuda-item-tit{display:block; font-size:14px; font-weight:600; color:var(--ink);}
+  .ajuda-item-res{display:block; font-size:11.5px; color:var(--ink-soft); margin-top:1px;}
+  .ajuda-seta{color:var(--line); font-size:19px;}
+
+  .ajuda-art-cabeca{display:flex; align-items:center; gap:11px; margin-bottom:14px;}
+  .ajuda-art-icone{
+    font-size:20px; width:44px; height:44px; flex-shrink:0; border-radius:12px;
+    background:var(--sage-bg); display:flex; align-items:center; justify-content:center;
+  }
+  .ajuda-art-cabeca h3{font-family:'Fraunces',serif; font-size:19px; margin:0; line-height:1.2;}
+  .ajuda-p{font-size:13.5px; line-height:1.65; color:var(--ink); margin:0 0 12px;}
+  .ajuda-p b, .ajuda-passos b{color:var(--stamp);}
+  .ajuda-passos{margin:0 0 14px; padding-left:20px;}
+  .ajuda-passos li{font-size:13.5px; line-height:1.6; color:var(--ink); margin-bottom:9px; padding-left:3px;}
+  .ajuda-dica{
+    font-size:12.5px; line-height:1.55; color:var(--ink); background:var(--sage-bg);
+    border-radius:9px; padding:10px 12px; margin-bottom:12px;
+  }
+  .ajuda-dica::before{content:'Dica  '; font-weight:700; color:var(--sage); font-size:10.5px; letter-spacing:.06em;}
+  .ajuda-aviso{
+    font-size:12.5px; line-height:1.55; color:var(--ink); background:var(--stamp-bg);
+    border-radius:9px; padding:10px 12px; margin-bottom:12px;
+  }
+  .ajuda-aviso::before{content:'Atenção  '; font-weight:700; color:var(--stamp); font-size:10.5px; letter-spacing:.06em;}
 </style>
 </head>
 <body>
@@ -689,7 +741,7 @@
     <div class="cover-eyebrow">&nbsp;</div>
     <h1 class="cover-title">Conta a Dois</h1>
     <div class="cover-sub" id="headerSub">carregando…</div>
-    <button class="btn-ajuda" onclick="abrirGuia()" aria-label="Como usar" title="Como usar">?</button>
+    <button class="btn-ajuda" onclick="abrirAjuda()" aria-label="Como usar" title="Como usar">?</button>
   </header>
 
   <div class="wrap">
@@ -1011,6 +1063,15 @@
     </main>
   </div>
 
+<div id="ajuda" class="guia-fundo hidden">
+  <div class="ajuda-caixa">
+    <button class="guia-fechar" onclick="fecharAjuda()" aria-label="fechar">✕</button>
+    <div id="ajudaTopo"></div>
+    <input type="text" id="ajudaBusca" placeholder="Buscar: convidar, milhas, senha…" oninput="renderAjuda()">
+    <div id="ajudaCorpo"></div>
+  </div>
+</div>
+
 <div id="guia" class="guia-fundo hidden">
   <div class="guia-caixa">
     <button class="guia-fechar" onclick="fecharGuia()" aria-label="fechar">✕</button>
@@ -1021,6 +1082,7 @@
       <button class="btn-primary" id="guiaAvancar">Próximo</button>
     </div>
     <button class="guia-pular" onclick="fecharGuia()">Pular o guia</button>
+    <button class="guia-pular hidden" id="guiaManual" onclick="fecharGuia(); abrirAjuda();">Ver o manual completo</button>
   </div>
 </div>
 
@@ -3514,6 +3576,293 @@ function assinarSonhos(){
   });
 }
 
+/* ---------- central de ajuda ----------
+   O tour de seis passos ensina o caminho das pedras na primeira vez.
+   Isto aqui e o manual: fica no "?" e responde a duvida que aparece
+   semanas depois, com o passo a passo de cada coisa. */
+
+const AJUDA = [
+  {
+    id: 'comecar',
+    icone: '🚩',
+    titulo: 'Primeiros passos',
+    resumo: 'O que fazer nos primeiros dez minutos',
+    blocos: [
+      {tipo:'texto', html:'A ordem abaixo economiza retrabalho: o Plano alimenta todo o resto do app.'},
+      {tipo:'passos', itens:[
+        'Vá em <b>Plano</b> e preencha <b>Renda</b>: quanto cada um recebe por mês.',
+        'Ainda no Plano, preencha os <b>gastos fixos</b> — aluguel, luz, internet, aquilo que chega todo mês.',
+        'Preencha os <b>gastos variáveis</b>, como o mercado. É uma estimativa, não precisa ser exato.',
+        'Toque em <b>Salvar plano</b>, no fim da tela.',
+        'Vá em <b>Quem tem acesso</b> e convide a outra pessoa pelo e-mail dela.',
+        'Pronto. A partir daqui é só lançar os gastos do dia a dia em <b>Lançar</b>.'
+      ]},
+      {tipo:'dica', texto:'Não precisa acertar tudo de primeira. Todo valor é editável a qualquer momento.'}
+    ]
+  },
+  {
+    id: 'convidar',
+    icone: '👥',
+    titulo: 'Convidar quem divide a conta',
+    resumo: 'Como colocar a outra pessoa no mesmo espaço',
+    blocos: [
+      {tipo:'texto', html:'Os dois veem e lançam no mesmo lugar, em tempo real. O que um lança aparece no celular do outro na hora.'},
+      {tipo:'passos', itens:[
+        'Abra a aba <b>Plano</b>.',
+        'Desça até o cartão <b>Quem tem acesso</b>.',
+        'Escreva o e-mail da pessoa no campo <b>Convidar por e-mail</b>.',
+        'Toque em <b>Enviar convite</b>. Ele aparece na lista como convite aguardando.',
+        'Peça para a pessoa abrir o link do app e tocar em <b>Criar um acesso novo</b>.',
+        'Ela precisa usar <b>exatamente o mesmo e-mail</b> que você convidou.',
+        'Ao entrar, ela cai direto no espaço de vocês, já com tudo preenchido.'
+      ]},
+      {tipo:'aviso', texto:'Convide antes de a pessoa entrar. Se ela criar o acesso sem convite, o app vai pedir para ela criar um espaço novo, e vocês ficariam separados, cada um vendo dados diferentes.'},
+      {tipo:'dica', texto:'O convite vale uma vez só e some depois que a pessoa entra. Para cancelar antes disso, toque no ✕ ao lado dele.'}
+    ]
+  },
+  {
+    id: 'lancar',
+    icone: '✎',
+    titulo: 'Lançar um gasto',
+    resumo: 'O uso de todo dia',
+    blocos: [
+      {tipo:'passos', itens:[
+        'Abra a aba <b>Lançar</b>.',
+        'Deixe marcado <b>− Gasto</b> no alto da tela.',
+        'Escolha quem gastou, tocando no nome.',
+        'Digite o <b>valor</b>.',
+        'Toque na <b>categoria</b> — mercado, uber, restaurantes, o que for.',
+        'A <b>descrição</b> é opcional. Sem ela, o app usa o nome da categoria.',
+        'A <b>data</b> já vem com hoje; mude se o gasto foi outro dia.',
+        'Toque em <b>Carimbar gasto</b>.'
+      ]},
+      {tipo:'dica', texto:'O valor aceita vírgula do jeito que a gente escreve: 12,50 ou 1.234,56. Também aceita 12.50, se for mais fácil no seu teclado.'},
+      {tipo:'texto', html:'<b>Para corrigir:</b> vá em <b>Extrato</b>, ache o lançamento e toque no ✕ para apagar. Ele pergunta antes. Depois é só lançar de novo com o valor certo.'}
+    ]
+  },
+  {
+    id: 'entrada',
+    icone: '💼',
+    titulo: 'Registrar dinheiro que entrou',
+    resumo: 'Salário extra, freela, venda, reembolso',
+    blocos: [
+      {tipo:'texto', html:'Serve para dinheiro que chegou fora do previsto no Plano.'},
+      {tipo:'passos', itens:[
+        'Abra <b>Lançar</b> e toque em <b>+ Entrada</b> no alto.',
+        'As categorias mudam: salário, loja, freela, venda, reembolso, presente.',
+        'Preencha valor, categoria e data como faria num gasto.',
+        'Toque em <b>Registrar entrada</b>.'
+      ]},
+      {tipo:'aviso', texto:'O salário de todo mês não precisa ser lançado aqui: ele já está no Plano e o Painel conta sozinho. Lançar de novo contaria em dobro.'},
+      {tipo:'dica', texto:'Use Entrada para o que varia: um freela, a venda de um móvel, um reembolso do trabalho.'}
+    ]
+  },
+  {
+    id: 'plano',
+    icone: '⚖',
+    titulo: 'Preencher e ajustar o Plano',
+    resumo: 'A base de todos os cálculos',
+    blocos: [
+      {tipo:'texto', html:'O Plano diz o que é normal no mês de vocês. É dele que sai a resposta de quanto sobra.'},
+      {tipo:'passos', itens:[
+        'Em <b>Renda</b>, cada linha é uma fonte: salário de cada um, aluguel recebido, renda de loja.',
+        'A caixinha <b>entra na conta</b> liga e desliga aquela renda sem apagar o valor.',
+        'Em <b>Gastos fixos</b>, ponha o que chega todo mês no mesmo valor.',
+        'Em <b>Gastos variáveis</b>, o que muda, como mercado.',
+        'Use <b>+ adicionar</b> para criar linhas e o ✕ para remover.',
+        'Toque em <b>Salvar plano</b> no fim. O botão fica verde quando há coisa não salva.'
+      ]},
+      {tipo:'dica', texto:'Perdeu o emprego ou a renda parou? Desmarque entra na conta em vez de apagar. O valor fica guardado e volta com um toque.'},
+      {tipo:'texto', html:'O bloco <b>Como fica o mês</b> mostra o resultado na hora: renda do casal, gastos fixos, sobra depois dos fixos e sobra no fim do mês.'}
+    ]
+  },
+  {
+    id: 'painel',
+    icone: '◆',
+    titulo: 'Ler o Painel',
+    resumo: 'O que cada número quer dizer',
+    blocos: [
+      {tipo:'texto', html:'O Painel é a resposta para como estamos este mês. Use as setas no topo para ver outros meses.'},
+      {tipo:'passos', itens:[
+        '<b>Sobrou no mês</b>: o que entrou menos o que saiu. Verde é sobra, vermelho é estouro.',
+        '<b>Entrou / Saiu</b>: os dois totais lado a lado, com a barra mostrando quanto do que entrou já foi gasto.',
+        '<b>De onde veio</b>: cada fonte do mês — o Plano, entradas lançadas, venda de milhas e rendimento dos investimentos.',
+        '<b>Para onde foi</b>: gastos por categoria, com a fatia de cada uma, e quanto cada um gastou.',
+        '<b>O que vocês têm hoje</b>: investimentos líquidos mais o estoque de milhas.',
+        '<b>Comparado ao plano</b>: o gasto real contra o previsto.'
+      ]},
+      {tipo:'dica', texto:'Se um número parecer errado, quase sempre é o Plano que está desatualizado. É de lá que vem a renda.'}
+    ]
+  },
+  {
+    id: 'milhas',
+    icone: '✈',
+    titulo: 'Controlar milhas',
+    resumo: 'Saldo, valor do milheiro, venda e uso',
+    blocos: [
+      {tipo:'passos', itens:[
+        'Na aba <b>Milhas</b>, cada cartão é um programa. Já vêm alguns; use <b>+ adicionar programa</b> para os seus.',
+        'Preencha a <b>quantidade</b> de milhas que você tem hoje.',
+        'Preencha o <b>milheiro</b>: quanto vale mil milhas naquele programa.',
+        'O cartão mostra o <b>valor estimado</b> daquele saldo.',
+        'Toque em <b>Salvar programas</b> quando terminar.'
+      ]},
+      {tipo:'texto', html:'<b>Ao vender ou usar</b>, use o bloco de baixo. Escolha <b>Vender</b> ou <b>Usar</b>, o programa, a quantidade e o valor do milheiro. O saldo baixa sozinho.'},
+      {tipo:'dica', texto:'Na venda, o milheiro é quanto você recebeu. No uso, é quanto a passagem custaria em dinheiro, e assim o app mostra a economia.'},
+      {tipo:'texto', html:'O <b>Histórico</b> lista tudo. Apagar um registro devolve as milhas ao saldo.'}
+    ]
+  },
+  {
+    id: 'investir',
+    icone: '▲',
+    titulo: 'Acompanhar investimentos',
+    resumo: 'CDB no CDI, com o líquido em destaque',
+    blocos: [
+      {tipo:'passos', itens:[
+        'Confira o <b>CDI ao ano</b> no alto da aba <b>Investir</b>. Ele muda com a Selic.',
+        'Toque em <b>+ adicionar CDB</b>.',
+        'Preencha o nome do banco, o valor aplicado, o % do CDI e a data da aplicação.',
+        'O cartão passa a mostrar o <b>líquido de hoje</b>, já com imposto descontado.',
+        'Ao resgatar, toque em <b>Resgatar hoje</b>. O valor congela e sai do total aplicado.'
+      ]},
+      {tipo:'texto', html:'Embaixo do valor aparecem o <b>bruto</b>, o <b>IR</b> e o <b>IOF</b>, para você ver de onde saiu o número.'},
+      {tipo:'dica', texto:'O imposto cai quanto mais tempo o dinheiro fica: 22,5% até 180 dias e 15% depois de dois anos. Resgatar antes de 30 dias ainda paga IOF.'},
+      {tipo:'aviso', texto:'Os valores são estimativa. Bancos arredondam de formas um pouco diferentes, então espere centavos de diferença do extrato.'}
+    ]
+  },
+  {
+    id: 'sonhos',
+    icone: '🌍',
+    titulo: 'Planejar uma viagem',
+    resumo: 'Quanto guardar por mês para realizar',
+    blocos: [
+      {tipo:'passos', itens:[
+        'Na aba <b>Sonhos</b>, toque em <b>+ novo sonho</b>.',
+        'Desça até <b>Dados do sonho</b> e preencha nome, destino e a data da viagem.',
+        'Use <b>Ver feriados nacionais</b> para escolher uma data que emenda com o fim de semana.',
+        'Volte a <b>O que a viagem inclui</b> e toque em <b>+ adicionar item</b>.',
+        'Para cada item: o que é, quanto custa, quanto já foi pago, o tipo e como pagar.',
+        'Toque em <b>Salvar sonhos</b>.'
+      ]},
+      {tipo:'texto', html:'<b>Como pagar</b> muda o cálculo:<br>• <b>Guardar e pagar à vista</b> vira dinheiro a juntar por mês.<br>• <b>Parcelar</b> vira parcela fixa mensal.<br>• <b>Levar em caixa</b> é dinheiro para gastar durante a viagem.'},
+      {tipo:'aviso', texto:'O app avisa se alguma parcela terminaria depois do embarque. A ideia é poder diluir o custo sem ninguém voltar de viagem devendo.'},
+      {tipo:'dica', texto:'O cartão Cabe no orçamento compara o custo mensal do sonho com a sobra do Plano e diz quanto falta por mês, se faltar.'}
+    ]
+  },
+  {
+    id: 'whatsapp',
+    icone: '📲',
+    titulo: 'Enviar o resumo no WhatsApp',
+    resumo: 'Mandar o fechamento do mês',
+    blocos: [
+      {tipo:'passos', itens:[
+        'Cadastre os telefones em <b>Plano</b>, no cartão <b>Contatos para o resumo</b>.',
+        'Salve o plano.',
+        'Vá no <b>Painel</b>, no cartão <b>Compartilhar</b>.',
+        'Toque em <b>Enviar para o nome da pessoa</b>. O WhatsApp abre com o texto pronto.',
+        'Confira e aperte enviar, no próprio WhatsApp.'
+      ]},
+      {tipo:'dica', texto:'O texto traz o que entrou, o que saiu, o que sobrou, de onde veio, para onde foi e o patrimônio. No último dia do mês o app lembra de enviar.'},
+      {tipo:'texto', html:'A mensagem nunca sai sozinha: o WhatsApp sempre espera você apertar enviar.'}
+    ]
+  },
+  {
+    id: 'conta',
+    icone: '🔑',
+    titulo: 'Conta, senha e nome do espaço',
+    resumo: 'Entrar, sair e renomear',
+    blocos: [
+      {tipo:'texto', html:'A sessão fica guardada no aparelho: não precisa entrar toda vez.'},
+      {tipo:'passos', itens:[
+        '<b>Esqueceu a senha?</b> Na tela de entrada, escreva o e-mail e toque em Esqueci a senha. O link chega no e-mail.',
+        '<b>Trocar o nome do espaço ou das pessoas:</b> aba Plano, cartão <b>Nomes</b>.',
+        '<b>Sair do aparelho:</b> aba Plano, cartão <b>Conta de acesso</b>.'
+      ]},
+      {tipo:'aviso', texto:'O nome do espaço é único entre todos os casais. Se já existir, o app avisa e você escolhe outro.'},
+      {tipo:'dica', texto:'Ninguém consegue recuperar a senha, nem quem fez o app, porque o sistema guarda só um código embaralhado. Por isso o caminho é sempre criar uma nova.'}
+    ]
+  },
+  {
+    id: 'problemas',
+    icone: '🛟',
+    titulo: 'Quando algo dá errado',
+    resumo: 'As mensagens mais comuns',
+    blocos: [
+      {tipo:'texto', html:'<b>E-mail ou senha incorretos</b><br>Confira o e-mail letra por letra. Se estiver certo, use Esqueci a senha.'},
+      {tipo:'texto', html:'<b>Já existe um espaço com esse nome</b><br>Outro casal usou esse nome. Escolha outro; acento e maiúscula não contam como diferença.'},
+      {tipo:'texto', html:'<b>Não foi possível salvar</b><br>Quase sempre é internet. Espere um instante e tente de novo, que o que estava na tela não se perde.'},
+      {tipo:'texto', html:'<b>O outro não vê o que eu lancei</b><br>Confira em <b>Plano</b>, no cartão <b>Quem tem acesso</b>, se vocês estão no mesmo espaço. Se aparecer convite aguardando, a pessoa ainda não entrou com aquele e-mail.'},
+      {tipo:'dica', texto:'Recarregar a página resolve boa parte das travadas. No computador, Ctrl+Shift+R.'}
+    ]
+  }
+];
+
+let ajudaAberta = null;   // id do topico aberto, ou null na lista
+
+function abrirAjuda(){
+  ajudaAberta = null;
+  document.getElementById('ajudaBusca').value = '';
+  document.getElementById('ajuda').classList.remove('hidden');
+  renderAjuda();
+}
+function fecharAjuda(){ document.getElementById('ajuda').classList.add('hidden'); }
+function abrirTopico(id){ ajudaAberta = id; renderAjuda(); document.getElementById('ajudaCorpo').scrollTop = 0; }
+function voltarAjuda(){ ajudaAberta = null; renderAjuda(); }
+
+function textoDoTopico(t){
+  const partes = [t.titulo, t.resumo];
+  t.blocos.forEach(b=>{
+    if(b.html) partes.push(b.html);
+    if(b.texto) partes.push(b.texto);
+    if(b.itens) partes.push(b.itens.join(' '));
+  });
+  return partes.join(' ').replace(/<[^>]+>/g,' ').toLowerCase();
+}
+function semAcento(s){
+  return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+}
+
+function renderAjuda(){
+  const corpo = document.getElementById('ajudaCorpo');
+  const topo = document.getElementById('ajudaTopo');
+
+  if(ajudaAberta){
+    const t = AJUDA.find(x=>x.id === ajudaAberta);
+    topo.innerHTML = `<button class="ajuda-voltar" onclick="voltarAjuda()">‹ Todos os temas</button>`;
+    corpo.innerHTML = `
+      <div class="ajuda-art-cabeca">
+        <div class="ajuda-art-icone">${t.icone}</div>
+        <h3>${t.titulo}</h3>
+      </div>
+      ${t.blocos.map(b=>{
+        if(b.tipo === 'passos'){
+          return '<ol class="ajuda-passos">' + b.itens.map(i=>`<li>${i}</li>`).join('') + '</ol>';
+        }
+        if(b.tipo === 'dica')  return `<div class="ajuda-dica">${b.texto}</div>`;
+        if(b.tipo === 'aviso') return `<div class="ajuda-aviso">${b.texto}</div>`;
+        return `<p class="ajuda-p">${b.html}</p>`;
+      }).join('')}`;
+    return;
+  }
+
+  const busca = semAcento(document.getElementById('ajudaBusca').value.trim());
+  const lista = busca
+    ? AJUDA.filter(t=>semAcento(textoDoTopico(t)).includes(busca))
+    : AJUDA;
+  topo.innerHTML = '<div class="ajuda-titulo">Como usar</div>';
+  corpo.innerHTML = lista.length
+    ? lista.map(t=>`
+        <button class="ajuda-item" onclick="abrirTopico('${t.id}')">
+          <span class="ajuda-item-icone">${t.icone}</span>
+          <span class="ajuda-item-txt">
+            <span class="ajuda-item-tit">${t.titulo}</span>
+            <span class="ajuda-item-res">${t.resumo}</span>
+          </span>
+          <span class="ajuda-seta">›</span>
+        </button>`).join('')
+    : `<div class="empty-state">Nada encontrado para essa busca.<br><br>Tente "convidar", "milhas", "senha" ou "viagem".</div>`;
+}
+
 /* ---------- guia rápido ----------
    Aparece sozinho na primeira vez de cada pessoa, em cada aparelho, e fica
    disponivel para sempre no "?" do cabecalho. */
@@ -3600,6 +3949,7 @@ function renderGuia(){
   document.getElementById('guiaVoltar').style.visibility = passoGuia === 0 ? 'hidden' : 'visible';
   document.getElementById('guiaAvancar').textContent = ultimo ? 'Começar' : 'Próximo';
   document.getElementById('guiaAvancar').onclick = ultimo ? fecharGuia : ()=>andarGuia(1);
+  document.getElementById('guiaManual').classList.toggle('hidden', !ultimo);
 }
 
 /* Chamado depois que o app carrega: so aparece para quem nunca viu. */
