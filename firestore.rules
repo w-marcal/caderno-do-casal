@@ -1,52 +1,92 @@
 rules_version = '2';
 
-// Regras do projeto "caderno-do-casal".
+// Regras do projeto "caderno-do-casal" / app "Conta a Dois".
 //
 // Onde colar: console.firebase.google.com > Firestore Database > aba "Regras"
-// > substituir tudo por este conteudo > Publicar.
+// > substituir tudo > Publicar.
 //
-// ANTES DE PUBLICAR, troque os dois e-mails abaixo pelos e-mails reais das
-// contas criadas em Authentication > Users. Faca essa troca DIRETO NO CONSOLE
-// e deixe este arquivo com os exemplos: o repositorio e publico, e e-mail
-// commitado aqui fica indexado e permanente no historico do git.
+// PUBLIQUE ESTAS REGRAS ANTES de abrir a versao nova do app. Elas continuam
+// aceitando os caminhos antigos (bloco LEGADO, no fim), entao o app atual
+// segue funcionando enquanto voce publica.
 //
-// Antes disso, no console:
-//   1. Authentication > Sign-in method > ativar "E-mail/senha"
-//   2. Authentication > Sign-in method > DESATIVAR "Anonimo"
-//   3. Authentication > Users > criar as duas contas (Felipe e Layla)
-//   4. Authentication > Settings > User actions > desmarcar
-//      "Enable create (sign-up)", para ninguem se cadastrar sozinho
-//
-// O passo 4 importa: a chave do Firebase e publica por natureza (esta dentro
-// do index.html, que qualquer um baixa). Sem ele, alguem poderia criar uma
-// conta no projeto. A lista de e-mails abaixo ja barra esse caso de qualquer
-// forma — os dois juntos e cinto e suspensorio.
+// Modelo: cada casal tem uma "conta" com seus proprios lancamentos, plano,
+// milhas e investimentos. Ninguem enxerga a conta de ninguem. Para entrar
+// numa conta existente e preciso ter sido convidado pelo e-mail.
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    function doCasal() {
-      return request.auth != null
-        && request.auth.token.email != null
-        && request.auth.token.email.lower() in [
-             'troque-pelo-email-do-felipe@exemplo.com',
-             'troque-pelo-email-da-layla@exemplo.com'
-           ];
+    function logado(){
+      return request.auth != null && request.auth.token.email != null;
+    }
+    function meuEmail(){
+      return request.auth.token.email.lower();
+    }
+    function dadosDaConta(contaId){
+      return get(/databases/$(database)/documents/contas/$(contaId)).data;
+    }
+    function membro(contaId){
+      return logado()
+        && exists(/databases/$(database)/documents/contas/$(contaId))
+        && request.auth.uid in dadosDaConta(contaId).membros;
+    }
+    // convite existe, e para o meu e-mail, e aponta para esta conta
+    function convidadoPara(contaId){
+      return logado()
+        && exists(/databases/$(database)/documents/convites/$(meuEmail()))
+        && get(/databases/$(database)/documents/convites/$(meuEmail())).data.contaId == contaId;
     }
 
-    // Plano/orcamento, milhas e demais documentos de configuracao.
-    match /caderno/{doc} {
-      allow read, write: if doCasal();
+    // Cada pessoa le e escreve so o proprio registro (guarda em qual conta esta).
+    match /usuarios/{uid} {
+      allow read, write: if logado() && request.auth.uid == uid;
     }
 
-    // Um documento por lancamento.
-    match /lancamentos/{doc} {
-      allow read, write: if doCasal();
+    // Convite fica guardado pelo e-mail de quem foi convidado.
+    match /convites/{email} {
+      // o convidado le e apaga o proprio convite ao entrar
+      allow read, delete: if logado() && meuEmail() == email;
+      // quem ja e da conta convida e cancela convites dela
+      allow create: if logado() && membro(request.resource.data.contaId);
+      allow delete: if logado() && membro(resource.data.contaId);
     }
 
-    // Nada alem disso.
-    match /{document=**} {
-      allow read, write: if false;
+    match /contas/{contaId} {
+      // ao criar, a pessoa precisa entrar como unico membro
+      allow create: if logado()
+        && request.resource.data.membros == [request.auth.uid];
+
+      allow read: if membro(contaId) || convidadoPara(contaId);
+
+      // membro edita a conta; convidado so pode se acrescentar
+      allow update: if membro(contaId)
+        || (convidadoPara(contaId)
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['membros','pessoas'])
+            && request.resource.data.membros.hasAll(resource.data.membros)
+            && request.resource.data.membros.size() == resource.data.membros.size() + 1
+            && request.auth.uid in request.resource.data.membros);
+
+      allow delete: if false;
     }
+
+    // Lancamentos, plano, milhas e investimentos vivem dentro da conta.
+    match /contas/{contaId}/{documento=**} {
+      allow read, write: if membro(contaId);
+    }
+
+    // ---------------------------------------------------------------
+    // LEGADO: os dados que existiam antes das contas separadas.
+    // Serve so para o app migrar para dentro da conta de voces.
+    // TROQUE pelos dois e-mails reais (os mesmos que ja estavam aqui).
+    // Depois que a migracao rodar, este bloco pode ser apagado.
+    // ---------------------------------------------------------------
+    function original(){
+      return logado() && meuEmail() in [
+        'troque-pelo-email-do-felipe@exemplo.com',
+        'troque-pelo-email-da-layla@exemplo.com'
+      ];
+    }
+    match /caderno/{doc}      { allow read, write: if original(); }
+    match /lancamentos/{doc}  { allow read, write: if original(); }
   }
 }

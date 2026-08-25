@@ -468,8 +468,8 @@
 <div id="lockScreen" class="lock hidden">
   <div class="lock-card">
     <div class="cover-eyebrow" style="color:var(--stamp)">Conta a Dois</div>
-    <h2>Entrar</h2>
-    <p>Entrem com a conta de vocês.</p>
+    <h2 id="lockTitulo">Entrar</h2>
+    <p id="lockDesc">Entrem com a conta de vocês.</p>
 
     <label style="text-align:left">E-mail</label>
     <input id="loginEmail" type="email" inputmode="email" autocomplete="username" placeholder="voce@exemplo.com">
@@ -479,6 +479,7 @@
 
     <div id="lockErr" class="err"></div>
     <button class="btn-primary" id="lockBtn" onclick="entrar()">Entrar</button>
+    <button class="btn-ghost" style="width:100%" id="linkCadastro" onclick="alternarCadastro()">Criar um acesso novo</button>
     <button class="btn-ghost" style="width:100%" onclick="recuperarSenha()">Esqueci a senha</button>
     <div class="save-msg" id="lockMsg"></div>
   </div>
@@ -489,9 +490,32 @@
   <div class="lock-card"><p style="margin:0">Abrindo…</p></div>
 </div>
 
+<div id="telaConta" class="lock hidden">
+  <div class="lock-card">
+    <div class="cover-eyebrow" style="color:var(--stamp)">Conta a Dois</div>
+    <h2>Criar o espaço de vocês</h2>
+    <p>Um espaço guarda os lançamentos, o plano, as milhas e os investimentos de um casal. Só quem vocês convidarem entra.</p>
+
+    <label style="text-align:left">Nome do espaço</label>
+    <input type="text" id="novoNomeConta" placeholder="ex: Nossa casa, Conta a Dois">
+
+    <label style="text-align:left">Seu nome</label>
+    <input type="text" id="novoPessoa1" placeholder="ex: Felipe">
+
+    <label style="text-align:left">Nome do seu par</label>
+    <input type="text" id="novoPessoa2" placeholder="ex: Layla">
+
+    <div id="contaErr" class="err"></div>
+    <button class="btn-primary" id="btnCriarConta" onclick="criarEspaco()">Criar espaço</button>
+    <button class="btn-ghost" style="width:100%" onclick="sair()">Sair</button>
+  </div>
+  <p class="share-hint">Se você foi convidado por alguém, entre com o mesmo e-mail que recebeu o convite e o app junta vocês automaticamente.</p>
+</div>
+
+
 <div id="app" class="hidden">
   <header class="cover">
-    <div class="cover-eyebrow">Felipe &amp; Layla</div>
+    <div class="cover-eyebrow">&nbsp;</div>
     <h1 class="cover-title">Conta a Dois</h1>
     <div class="cover-sub" id="headerSub">carregando…</div>
   </header>
@@ -508,10 +532,7 @@
           </div>
 
           <div class="section-label">Quem está lançando</div>
-          <div class="who-toggle">
-            <button class="who-btn sel" id="whoFelipe" onclick="setWho('Felipe')">Felipe</button>
-            <button class="who-btn" id="whoLayla" onclick="setWho('Layla')">Layla</button>
-          </div>
+          <div class="who-toggle" id="quemToggle"></div>
 
           <label>Valor</label>
           <div class="valor-row">
@@ -578,8 +599,8 @@
           <div class="section-label">Para onde foi</div>
           <div id="resCategorias"></div>
           <div class="split-row" style="margin-top:14px">
-            <div class="split-card"><div class="who">Felipe gastou</div><div class="amt" id="resFelipe">R$ 0</div></div>
-            <div class="split-card"><div class="who">Layla gastou</div><div class="amt" id="resLayla">R$ 0</div></div>
+            <div class="split-card"><div class="who" id="resFelipeLabel">—</div><div class="amt" id="resFelipe">R$ 0</div></div>
+            <div class="split-card"><div class="who" id="resLaylaLabel">—</div><div class="amt" id="resLayla">R$ 0</div></div>
           </div>
         </div>
 
@@ -676,7 +697,29 @@
         </div>
 
         <div class="card">
-          <div class="section-label">Conta</div>
+          <div class="section-label">Quem tem acesso</div>
+          <div id="acessoInfo"></div>
+
+          <label>Convidar por e-mail</label>
+          <input type="text" id="convidarEmail" inputmode="email" placeholder="email@dapessoa.com">
+          <button class="btn-ghost" id="btnConvidar" style="width:100%; margin-top:8px" onclick="convidar()">Enviar convite</button>
+          <div class="plan-hint" style="margin-top:8px">A pessoa cria o acesso com esse mesmo e-mail e cai direto neste espaço. O convite vale uma vez.</div>
+          <div class="save-msg" id="convidarMsg"></div>
+        </div>
+
+        <div class="card">
+          <div class="section-label">Nomes</div>
+          <label>Nome do espaço</label>
+          <input type="text" id="editNomeConta">
+          <label>Primeira pessoa</label>
+          <input type="text" id="editPessoa1">
+          <label>Segunda pessoa</label>
+          <input type="text" id="editPessoa2">
+          <button class="btn-ghost" style="width:100%; margin-top:10px" onclick="salvarNomesDaConta()">Salvar nomes</button>
+        </div>
+
+        <div class="card">
+          <div class="section-label">Conta de acesso</div>
           <div class="plan-hint" id="contaEmail" style="margin-bottom:10px"></div>
           <button class="btn-ghost" style="width:100%; margin:0" onclick="sair()">Sair deste aparelho</button>
         </div>
@@ -784,7 +827,7 @@
   </div>
 
   <nav class="tabbar">
-    <div class="side-brand">Conta a Dois<small>Felipe &amp; Layla</small></div>
+    <div class="side-brand">Conta a Dois<small>&nbsp;</small></div>
     <button class="active" id="navResumo" onclick="showTab('resumo')"><span class="ico">◆</span>Painel</button>
     <button id="navLancar" onclick="showTab('lancar')"><span class="ico">✎</span>Lançar</button>
     <button id="navExtrato" onclick="showTab('extrato')"><span class="ico">📜</span>Extrato</button>
@@ -832,17 +875,36 @@ auth.onAuthStateChanged(user=>{
     return;
   }
   usuarioAtual = user || null;
-  document.getElementById('carregando').classList.add('hidden');
   if(user){
-    document.getElementById('lockScreen').classList.add('hidden');
-    document.getElementById('app').classList.remove('hidden');
     document.getElementById('loginSenha').value = '';
-    if(!appIniciado){ appIniciado = true; boot(); }
+    abrirParaUsuario(user);
   } else {
+    document.getElementById('carregando').classList.add('hidden');
     document.getElementById('app').classList.add('hidden');
+    document.getElementById('telaConta').classList.add('hidden');
     document.getElementById('lockScreen').classList.remove('hidden');
   }
 });
+
+/* Depois do login: descobre a conta da pessoa. Quem ainda nao tem
+   (nem foi convidado) vai para a tela de criar o espaco. */
+async function abrirParaUsuario(user){
+  document.getElementById('lockScreen').classList.add('hidden');
+  document.getElementById('carregando').classList.remove('hidden');
+  try{
+    const situacao = await resolverConta(user);
+    if(situacao === 'sem-conta'){ mostrarTelaConta(); return; }
+    document.getElementById('carregando').classList.add('hidden');
+    document.getElementById('telaConta').classList.add('hidden');
+    document.getElementById('app').classList.remove('hidden');
+    if(!appIniciado){ appIniciado = true; await boot(); }
+  }catch(e){
+    console.error('Não foi possível abrir a conta:', e);
+    document.getElementById('carregando').classList.add('hidden');
+    document.getElementById('lockScreen').classList.remove('hidden');
+    document.getElementById('lockErr').textContent = 'Não foi possível abrir sua conta. Tente de novo.';
+  }
+}
 
 function mensagemDeErro(e){
   const cod = e && e.code || '';
@@ -856,23 +918,94 @@ function mensagemDeErro(e){
   return 'E-mail ou senha incorretos.';
 }
 
+/* ---------- criar acesso e espaço ---------- */
+
+let modoCadastro = false;
+function alternarCadastro(){
+  modoCadastro = !modoCadastro;
+  document.getElementById('lockTitulo').textContent = modoCadastro ? 'Criar acesso' : 'Entrar';
+  document.getElementById('lockDesc').textContent = modoCadastro
+    ? 'Escolha um e-mail e uma senha de pelo menos 6 caracteres.'
+    : 'Entrem com a conta de vocês.';
+  document.getElementById('lockBtn').textContent = modoCadastro ? 'Criar acesso' : 'Entrar';
+  document.getElementById('linkCadastro').textContent = modoCadastro
+    ? 'Já tenho acesso — entrar' : 'Criar um acesso novo';
+  document.getElementById('lockErr').textContent = '';
+  document.getElementById('lockMsg').textContent = '';
+  document.getElementById('loginSenha').autocomplete = modoCadastro ? 'new-password' : 'current-password';
+}
+
 async function entrar(){
   const email = document.getElementById('loginEmail').value.trim();
   const senha = document.getElementById('loginSenha').value;
   const err = document.getElementById('lockErr');
   err.textContent = '';
   if(!email || !senha){ err.textContent = 'Preencha o e-mail e a senha.'; return; }
+  if(modoCadastro && senha.length < 6){ err.textContent = 'A senha precisa de pelo menos 6 caracteres.'; return; }
   const btn = document.getElementById('lockBtn');
+  const rotulo = btn.textContent;
   btn.disabled = true;
-  btn.textContent = 'Entrando…';
+  btn.textContent = modoCadastro ? 'Criando…' : 'Entrando…';
   try{
-    await auth.signInWithEmailAndPassword(email, senha);
+    if(modoCadastro) await auth.createUserWithEmailAndPassword(email, senha);
+    else await auth.signInWithEmailAndPassword(email, senha);
   }catch(e){
-    console.error('Falha no login:', e.code);
+    console.error('Falha no acesso:', e.code);
     err.textContent = mensagemDeErro(e);
   }
   btn.disabled = false;
-  btn.textContent = 'Entrar';
+  btn.textContent = rotulo;
+}
+
+function mostrarTelaConta(){
+  document.getElementById('carregando').classList.add('hidden');
+  document.getElementById('lockScreen').classList.add('hidden');
+  document.getElementById('app').classList.add('hidden');
+  document.getElementById('telaConta').classList.remove('hidden');
+}
+
+async function criarEspaco(){
+  const nome = document.getElementById('novoNomeConta').value.trim();
+  const p1 = document.getElementById('novoPessoa1').value.trim();
+  const p2 = document.getElementById('novoPessoa2').value.trim();
+  const err = document.getElementById('contaErr');
+  err.textContent = '';
+  if(!nome){ err.textContent = 'Dê um nome ao espaço.'; return; }
+  if(!p1 || !p2){ err.textContent = 'Preencha os dois nomes.'; return; }
+  if(p1.toLowerCase() === p2.toLowerCase()){ err.textContent = 'Os dois nomes precisam ser diferentes.'; return; }
+  const btn = document.getElementById('btnCriarConta');
+  btn.disabled = true;
+  btn.textContent = 'Criando…';
+  try{
+    await criarConta(nome, p1, p2);
+    document.getElementById('telaConta').classList.add('hidden');
+    document.getElementById('app').classList.remove('hidden');
+    if(!appIniciado){ appIniciado = true; await boot(); }
+  }catch(e){
+    console.error('Não foi possível criar o espaço:', e);
+    err.textContent = 'Não foi possível criar. Tente de novo.';
+    btn.disabled = false;
+    btn.textContent = 'Criar espaço';
+  }
+}
+
+/* Quem lançou: os nomes vêm da conta, não são mais fixos no código. */
+function buildQuemToggle(){
+  const alvo = document.getElementById('quemToggle');
+  if(!alvo) return;
+  const gente = pessoas();
+  if(gente.indexOf(selectedWho) < 0) selectedWho = gente[0];
+  alvo.innerHTML = gente.map(n=>
+    `<button class="who-btn${n===selectedWho?' sel':''}" onclick="setWho('${escapeHtml(n)}')">${escapeHtml(n)}</button>`
+  ).join('');
+  const f = document.getElementById('resFelipeLabel');
+  if(f) f.textContent = gente[0] + ' gastou';
+  const l = document.getElementById('resLaylaLabel');
+  if(l) l.textContent = gente[1] + ' gastou';
+}
+function setWho(w){
+  selectedWho = w;
+  buildQuemToggle();
 }
 
 async function recuperarSenha(){
@@ -900,10 +1033,140 @@ async function sair(){
 document.getElementById('loginSenha').addEventListener('keydown', e=>{ if(e.key==='Enter') entrar(); });
 document.getElementById('loginEmail').addEventListener('keydown', e=>{ if(e.key==='Enter') entrar(); });
 
-/* Coleção onde cada lançamento é um documento próprio.
-   Assim os dois podem lançar ao mesmo tempo sem um sobrescrever o outro. */
-const LANC = 'lancamentos';
-function lancRef(){ return db.collection(LANC); }
+/* ---------- conta do casal ----------
+   Cada casal tem uma conta propria. Tudo (lancamentos, plano, milhas,
+   investimentos) mora dentro dela, e as regras do Firestore so deixam
+   membros entrar. Ninguem ve a conta de ninguem. */
+
+let contaAtual = null;   // {id, nome, membros, pessoas}
+
+function contaRef(){ return db.collection('contas').doc(contaAtual.id); }
+function lancRef(){ return contaRef().collection('lancamentos'); }
+function cfgRef(nome){ return contaRef().collection('config').doc(nome); }
+
+function pessoas(){
+  return (contaAtual && contaAtual.pessoas && contaAtual.pessoas.length)
+    ? contaAtual.pessoas : ['Eu', 'Par'];
+}
+
+/* Descobre em qual conta a pessoa esta: a que ja usa, a que foi convidada,
+   ou nenhuma (ai o app pede para criar). */
+async function resolverConta(user){
+  const meu = await db.collection('usuarios').doc(user.uid).get();
+  if(meu.exists && meu.data().contaId){
+    const ok = await carregarConta(meu.data().contaId);
+    if(ok) return 'pronta';
+  }
+  const email = (user.email || '').toLowerCase();
+  const convite = await db.collection('convites').doc(email).get();
+  if(convite.exists && convite.data().contaId){
+    await entrarPorConvite(convite.data().contaId, email);
+    return 'pronta';
+  }
+  return 'sem-conta';
+}
+
+async function carregarConta(contaId){
+  const snap = await db.collection('contas').doc(contaId).get();
+  if(!snap.exists) return false;
+  const d = snap.data() || {};
+  contaAtual = {
+    id: contaId,
+    nome: d.nome || 'Nossa conta',
+    membros: d.membros || [],
+    pessoas: Array.isArray(d.pessoas) && d.pessoas.length ? d.pessoas : ['Eu','Par']
+  };
+  return true;
+}
+
+/* Entra numa conta existente: acrescenta a si mesmo aos membros e queima
+   o convite, para ele nao servir duas vezes. */
+async function entrarPorConvite(contaId, email){
+  const ref = db.collection('contas').doc(contaId);
+  const snap = await ref.get();
+  if(!snap.exists) throw new Error('conta do convite nao existe');
+  const membros = (snap.data().membros || []).slice();
+  if(membros.indexOf(usuarioAtual.uid) < 0) membros.push(usuarioAtual.uid);
+  await ref.update({ membros });
+  await db.collection('usuarios').doc(usuarioAtual.uid).set({
+    contaId, email, entrouEm: new Date().toISOString()
+  });
+  try{ await db.collection('convites').doc(email).delete(); }catch(e){ console.warn(e); }
+  await carregarConta(contaId);
+}
+
+/* Cria uma conta nova, com quem esta criando como unico membro. */
+async function criarConta(nomeDaConta, nomeDePessoa1, nomeDePessoa2){
+  const ref = db.collection('contas').doc();
+  await ref.set({
+    nome: nomeDaConta,
+    membros: [usuarioAtual.uid],
+    pessoas: [nomeDePessoa1, nomeDePessoa2],
+    criadoEm: new Date().toISOString()
+  });
+  await db.collection('usuarios').doc(usuarioAtual.uid).set({
+    contaId: ref.id, email: (usuarioAtual.email||'').toLowerCase(),
+    entrouEm: new Date().toISOString()
+  });
+  await carregarConta(ref.id);
+}
+
+/* Convite: guardado pelo e-mail de quem foi chamado. Quando essa pessoa
+   entrar (criando conta ou fazendo login), o app acha e junta os dois. */
+async function convidarParaConta(email){
+  const alvo = String(email||'').trim().toLowerCase();
+  if(!alvo || alvo.indexOf('@') < 0) throw new Error('e-mail inválido');
+  await db.collection('convites').doc(alvo).set({
+    contaId: contaAtual.id,
+    convidadoPor: (usuarioAtual.email||'').toLowerCase(),
+    criadoEm: new Date().toISOString()
+  });
+}
+async function cancelarConvite(email){
+  await db.collection('convites').doc(String(email).toLowerCase()).delete();
+}
+
+/* ---------- migracao dos dados antigos ----------
+   Antes das contas separadas, tudo vivia em caminhos unicos. Quem consegue
+   ler aqueles caminhos (so os dois e-mails originais, pelas regras) traz o
+   historico para dentro da conta nova. Roda uma vez. */
+async function migrarLegadoParaConta(){
+  let algo = false;
+  try{
+    const antigos = await db.collection('lancamentos').get();
+    if(!antigos.empty){
+      let lote = db.batch();
+      let n = 0;
+      for(const d of antigos.docs){
+        lote.set(lancRef().doc(d.id), d.data());
+        n++;
+        if(n % 400 === 0){ await lote.commit(); lote = db.batch(); }
+      }
+      await lote.commit();
+      algo = true;
+      console.log('migrados ' + antigos.size + ' lancamentos');
+    }
+  }catch(e){ console.warn('sem lancamentos antigos para migrar:', e.code || e.message); }
+
+  for(const nome of ['orcamento','milhas','investimentos']){
+    try{
+      const velho = await db.collection('caderno').doc(nome).get();
+      if(velho.exists){
+        const destino = await cfgRef(nome).get();
+        if(!destino.exists){
+          await cfgRef(nome).set(velho.data());
+          algo = true;
+          console.log('migrado: ' + nome);
+        }
+      }
+    }catch(e){ console.warn('sem ' + nome + ' antigo:', e.code || e.message); }
+  }
+  if(algo){
+    try{ await contaRef().update({ migradoEm: new Date().toISOString() }); }catch(e){}
+  }
+  return algo;
+}
+
 
 const CATEGORIES = [
   {id:'viagem', em:'✈️', label:'Viagem'},
@@ -924,78 +1187,48 @@ const CATEGORIES = [
   {id:'contrib', em:'🤍', label:'Contrib.'},
   {id:'outros', em:'✦', label:'Outros'},
 ];
-/* Plano/orçamento — valores iniciais informados pelo Felipe em ago/2026.
-   Tudo isto é editável na aba "Plano" e fica salvo no Firestore, compartilhado
-   entre os dois. Os totais (renda certa, fixos, sobra) NÃO são guardados: são
-   calculados a partir dos campos, senão ficariam desatualizados a cada edição. */
-/* Categorias de entrada: dinheiro chegando, nao saindo. */
-const CATEGORIAS_ENTRADA = [
-  {id:'salario',    em:'💼', label:'Salário'},
-  {id:'loja',       em:'🏷️', label:'Loja'},
-  {id:'freela',     em:'🧰', label:'Freela'},
-  {id:'venda',      em:'💱', label:'Venda'},
-  {id:'reembolso',  em:'↩️', label:'Reembolso'},
-  {id:'presente',   em:'🎁', label:'Presente'},
-  {id:'rendimento', em:'▲', label:'Rendimento'},
-  {id:'outra',      em:'✦', label:'Outra'}
-];
-let tipoLanc = 'gasto';
-function catsDoTipo(){ return tipoLanc === 'entrada' ? CATEGORIAS_ENTRADA : CATEGORIES; }
-function acharCategoria(id, tipo){
-  const lista = tipo === 'entrada' ? CATEGORIAS_ENTRADA : CATEGORIES;
-  return lista.find(c=>c.id===id) || {em:'✦', label:id||'—'};
-}
-function ehEntrada(e){ return e && e.tipo === 'entrada'; }
-
+/* Plano/orcamento em branco: cada casal preenche o seu na aba Plano.
+   Os totais (renda, fixos, sobra) sao sempre calculados, nunca guardados,
+   para nao ficarem desatualizados a cada edicao. */
 const PLANO_PADRAO = {
-  observacao: 'Valores informados por Felipe em ago/2026. Atualizar sempre que salário, contas ou renda da loja mudarem.',
-  atualizadoEm: '2026-08-17',
+  observacao: '',
+  atualizadoEm: '',
   renda: [
-    {nome:'Salário Layla', valor:2650, ativo:true, obs:'faixa informada: R$ 2.500 a R$ 2.800'},
-    {nome:'Loja virtual (PT)', valor:1666.67, ativo:true, obs:'R$ 20.000/ano ÷ 12'},
-    {nome:'Salário Felipe (banco)', valor:3750, ativo:false, obs:'Parado desde mar/2026 — aguardando reintegração após demissão. Faixa: R$ 3.500 a R$ 4.000'}
+    {nome:'Salário', valor:0, ativo:true, obs:''},
+    {nome:'Outra renda', valor:0, ativo:false, obs:''}
   ],
   fixos: [
-    {nome:'Condomínio (inclui água)', valor:280, obs:''},
-    {nome:'Financiamento do imóvel', valor:450, obs:''},
-    {nome:'Luz', valor:280, obs:''},
-    {nome:'Internet', valor:115, obs:''},
-    {nome:'Celular', valor:90, obs:'daria para baixar para R$ 60'},
-    {nome:'Netflix', valor:40, obs:''},
-    {nome:'Seguro do cartão', valor:60, obs:''},
-    {nome:'Seguro residencial', valor:60, obs:''}
+    {nome:'Aluguel / financiamento', valor:0, obs:''},
+    {nome:'Condomínio', valor:0, obs:''},
+    {nome:'Luz', valor:0, obs:''},
+    {nome:'Água', valor:0, obs:''},
+    {nome:'Internet', valor:0, obs:''},
+    {nome:'Celular', valor:0, obs:''},
+    {nome:'Assinaturas', valor:0, obs:''}
   ],
   variaveis: [
-    {nome:'Alimentação / mercado', valor:1300, obs:''}
+    {nome:'Alimentação / mercado', valor:0, obs:''}
   ],
-  extrasObs: 'Não são renda recorrente — não usar para cobrir gastos fixos mensais.',
-  extras: [
-    {nome:'INSS recebido', valor:3000, obs:'março/2026'},
-    {nome:'Adiantamento do banco', valor:3000, obs:'referente a 3 meses'}
-  ],
+  extrasObs: 'Dinheiro que entra uma vez só — não conte com ele para pagar gasto fixo.',
+  extras: [],
   retroativo: {
-    meses:['abril','maio','junho','julho','agosto'],
-    estimativaPorMes:3750,
-    status:'Ainda não confirmado pelo banco'
+    meses: [],
+    estimativaPorMes: 0,
+    status: ''
   },
-  /* Telefones ficam vazios de propósito: o repositório é público, então os
-     números são digitados no app e guardados no Firestore, nunca no código. */
-  contatos: [
-    {nome:'Felipe', telefone:''},
-    {nome:'Layla', telefone:''}
-  ],
   destino: [
     {nome:'Reserva de emergência', pct:50},
     {nome:'Quitar dívidas', pct:20},
-    {nome:'Reinvestir na loja', pct:15},
+    {nome:'Investir', pct:15},
     {nome:'Lazer / viagem', pct:15}
-  ]
+  ],
+  contatos: []
 };
 let plano = JSON.parse(JSON.stringify(PLANO_PADRAO));
 let planoSujo = false;   // há edições ainda não salvas?
 
 let selectedCat = 'viagem';
-let selectedWho = 'Felipe';
+let selectedWho = '';
 let entries = [];
 /* Sempre no dia 1: evita que "mês anterior" pule um mês quando hoje é dia 29-31. */
 function inicioDoMes(d){ return new Date(d.getFullYear(), d.getMonth(), 1); }
@@ -1029,15 +1262,28 @@ function monthLabel(d){
 /* ---------- boot ---------- */
 async function boot(){
   buildCatGrid();
+  buildQuemToggle();
   document.getElementById('fData').valueAsDate = new Date();
   document.getElementById('milData').valueAsDate = new Date();
   setMilTipo('venda');
+  aplicarNomeDaConta();
+  /* Traz o historico de antes das contas separadas, se houver e se esta
+     pessoa puder ler (pelas regras, so os dois e-mails originais). */
   try{
-    await migrarSeNecessario();
+    await migrarLegadoParaConta();
   }catch(e){
-    console.error('Não foi possível migrar os lançamentos antigos:', e);
+    console.warn('nada a migrar:', e && (e.code || e.message));
   }
   await Promise.all([ assinarLancamentos(), assinarPlano(), assinarMilhas(), assinarInvestimentos() ]);
+}
+
+function aplicarNomeDaConta(){
+  const nome = contaAtual ? contaAtual.nome : 'Conta a Dois';
+  const gente = pessoas().join(' & ');
+  document.querySelector('header.cover .cover-eyebrow').textContent = gente;
+  document.querySelector('header.cover .cover-title').textContent = nome;
+  const marca = document.querySelector('.side-brand');
+  if(marca) marca.innerHTML = escapeHtml(nome) + '<small>' + escapeHtml(gente) + '</small>';
 }
 
 function setTipoLanc(t){
@@ -1063,46 +1309,12 @@ function buildCatGrid(){
   });
 }
 
-function setWho(w){
-  selectedWho = w;
-  document.getElementById('whoFelipe').classList.toggle('sel', w==='Felipe');
-  document.getElementById('whoLayla').classList.toggle('sel', w==='Layla');
-}
+
 
 /* ---------- storage ---------- */
 
-/* Converte o formato antigo (um único documento com todos os lançamentos em
-   JSON) para um documento por lançamento. Roda dentro de uma transação, então
-   é seguro mesmo se os dois abrirem o app ao mesmo tempo: o primeiro migra, o
-   segundo enxerga a marca "migradoEm" e não faz nada. O documento antigo é
-   mantido intacto como backup. */
-async function migrarSeNecessario(){
-  await ensureAuth();
-  const legadoRef = db.collection('caderno').doc('entries');
-  await db.runTransaction(async tx=>{
-    const snap = await tx.get(legadoRef);
-    if(!snap.exists) return;
-    const dados = snap.data() || {};
-    if(dados.migradoEm || !dados.value) return;
-    let antigos = [];
-    try{ antigos = JSON.parse(dados.value) || []; }catch(e){ antigos = []; }
-    antigos.forEach(e=>{
-      if(!e || !e.id || !e.data) return;
-      tx.set(lancRef().doc(String(e.id)), {
-        valor: Number(e.valor) || 0,
-        categoria: e.categoria || 'outros',
-        quem: e.quem || 'Felipe',
-        desc: e.desc || '',
-        data: e.data,
-        criadoEm: e.data
-      });
-    });
-    tx.update(legadoRef, { migradoEm: new Date().toISOString() });
-  });
-}
-
-/* Escuta a coleção em tempo real: o que a Layla lançar no celular dela
-   aparece aqui sem precisar recarregar a página. */
+/* Escuta a coleção em tempo real: o que um lançar no celular
+   aparece no do outro sem precisar recarregar a página. */
 let jaAssinou = false;
 function assinarLancamentos(){
   if(jaAssinou) return Promise.resolve();
@@ -1116,7 +1328,7 @@ function assinarLancamentos(){
           id: d.id,
           valor: Number(v.valor) || 0,
           categoria: v.categoria || 'outros',
-          quem: v.quem || 'Felipe',
+          quem: v.quem || pessoas()[0],
           tipo: v.tipo === 'entrada' ? 'entrada' : 'gasto',
           desc: v.desc || '',
           data: v.data || ''
@@ -1242,6 +1454,13 @@ function renderPlano(){
   document.getElementById('planoObs').value    = plano.observacao;
   document.getElementById('contaEmail').textContent =
     usuarioAtual ? 'Conectado como ' + usuarioAtual.email : '';
+  if(contaAtual){
+    const gente = pessoas();
+    document.getElementById('editNomeConta').value = contaAtual.nome;
+    document.getElementById('editPessoa1').value = gente[0] || '';
+    document.getElementById('editPessoa2').value = gente[1] || '';
+    renderAcesso();
+  }
 
   renderDestino();
   renderDerivados();
@@ -1372,11 +1591,11 @@ async function salvarPlano(){
   btn.disabled = true;
   plano.atualizadoEm = hojeISO();
   try{
-    await db.collection('caderno').doc('orcamento').set(plano);
+    await cfgRef('orcamento').set(plano);
     planoSujo = false;
     btn.textContent = 'Tudo salvo';
     msg.style.color = 'var(--sage)';
-    msg.textContent = '✓ Plano salvo — a Layla já vê a mesma coisa.';
+    msg.textContent = '✓ Plano salvo — quem divide a conta já vê o mesmo.';
     renderDerivados();
   }catch(e){
     console.error('Não foi possível salvar o plano:', e);
@@ -1393,14 +1612,14 @@ async function salvarPlano(){
 function assinarPlano(){
   return new Promise(resolve=>{
     let primeira = true;
-    db.collection('caderno').doc('orcamento').onSnapshot(async snap=>{
+    cfgRef('orcamento').onSnapshot(async snap=>{
       if(snap.exists){
         if(!planoSujo){
           plano = normalizarPlano(snap.data());
           renderPlano();
         }
       } else if(primeira){
-        try{ await db.collection('caderno').doc('orcamento').set(plano); }
+        try{ await cfgRef('orcamento').set(plano); }
         catch(e){ console.error('Não foi possível criar o plano inicial:', e); }
         renderPlano();
       }
@@ -1469,7 +1688,7 @@ function montarResumoTexto(){
   const gastos = gastosDoMes(resumoCursor);
   const saiu = gastos.reduce((s,e)=>s+e.valor,0);
   const entrou = totalEntradasDoMes(resumoCursor);
-  const porQuem = {Felipe:0, Layla:0};
+  const porQuem = {}; pessoas().forEach(n=>porQuem[n]=0);
   gastos.forEach(e=>{ porQuem[e.quem] = (porQuem[e.quem]||0) + e.valor; });
   const porCat = {};
   gastos.forEach(e=>{ porCat[e.categoria] = (porCat[e.categoria]||0) + e.valor; });
@@ -1481,7 +1700,8 @@ function montarResumoTexto(){
   linhas.push(`Saiu: *${fmt(saiu)}*`);
   linhas.push(`Sobrou: *${fmt(entrou - saiu)}*`);
   linhas.push('');
-  linhas.push(`Felipe gastou ${fmt(porQuem.Felipe||0)}  |  Layla gastou ${fmt(porQuem.Layla||0)}`);
+  const gente = pessoas();
+  linhas.push(gente.map(n=>`${n} gastou ${fmt(porQuem[n]||0)}`).join('  |  '));
 
   const itens = entradasDoMes(resumoCursor);
   if(itens.length){
@@ -1542,14 +1762,11 @@ function renderBotoesContatos(){
 const MILHAS_PADRAO = {
   atualizadoEm: '2026-08-17',
   programas: [
-    {nome:'Latam',   quantidade:0, milheiro:0},
-    {nome:'Smiles',  quantidade:0, milheiro:0},
-    {nome:'Azul',    quantidade:0, milheiro:0},
-    {nome:'Esfera',  quantidade:0, milheiro:0},
-    {nome:'Livelo',  quantidade:0, milheiro:0},
-    {nome:'Aegean',  quantidade:0, milheiro:0},
-    {nome:'Revolut', quantidade:0, milheiro:0},
-    {nome:'Avios',   quantidade:0, milheiro:0}
+    {nome:'Latam',  quantidade:0, milheiro:0},
+    {nome:'Smiles', quantidade:0, milheiro:0},
+    {nome:'Azul',   quantidade:0, milheiro:0},
+    {nome:'Livelo', quantidade:0, milheiro:0},
+    {nome:'Esfera', quantidade:0, milheiro:0}
   ],
   movimentos: []
 };
@@ -1800,7 +2017,7 @@ async function excluirMovimentoMilhas(id){
 
 async function persistirMilhas(){
   milhas.atualizadoEm = hojeISO();
-  await db.collection('caderno').doc('milhas').set(milhas);
+  await cfgRef('milhas').set(milhas);
   milhasSujo = false;
   const btn = document.getElementById('milSaveBtn');
   btn.disabled = true;
@@ -1826,14 +2043,14 @@ async function salvarMilhas(){
 function assinarMilhas(){
   return new Promise(resolve=>{
     let primeira = true;
-    db.collection('caderno').doc('milhas').onSnapshot(async snap=>{
+    cfgRef('milhas').onSnapshot(async snap=>{
       if(snap.exists){
         if(!milhasSujo){
           milhas = normalizarMilhas(snap.data());
           renderMilhas();
         }
       } else if(primeira){
-        try{ await db.collection('caderno').doc('milhas').set(milhas); }
+        try{ await cfgRef('milhas').set(milhas); }
         catch(e){ console.error('Não foi possível criar as milhas iniciais:', e); }
         renderMilhas();
       }
@@ -2109,7 +2326,7 @@ async function salvarInvestimentos(){
   btn.disabled = true;
   investimentos.atualizadoEm = hojeISO();
   try{
-    await db.collection('caderno').doc('investimentos').set(investimentos);
+    await cfgRef('investimentos').set(investimentos);
     investSujo = false;
     btn.textContent = 'Tudo salvo';
     msg.style.color = 'var(--sage)';
@@ -2126,14 +2343,14 @@ async function salvarInvestimentos(){
 function assinarInvestimentos(){
   return new Promise(resolve=>{
     let primeira = true;
-    db.collection('caderno').doc('investimentos').onSnapshot(async snap=>{
+    cfgRef('investimentos').onSnapshot(async snap=>{
       if(snap.exists){
         if(!investSujo){
           investimentos = normalizarInvestimentos(snap.data());
           renderInvestimentos();
         }
       } else if(primeira){
-        try{ await db.collection('caderno').doc('investimentos').set(investimentos); }
+        try{ await cfgRef('investimentos').set(investimentos); }
         catch(e){ console.error('Não foi possível criar os investimentos iniciais:', e); }
         renderInvestimentos();
       }
@@ -2212,6 +2429,111 @@ function patrimonio(){
     .reduce((soma,a)=>soma + calcularAplicacao(a).liquido, 0);
   const estoqueMilhas = milhas.programas.reduce((soma,p)=>soma + valorEstoque(p), 0);
   return { cdbs, milhas: estoqueMilhas, total: cdbs + estoqueMilhas };
+}
+
+/* ---------- quem tem acesso ao espaço ---------- */
+
+async function renderAcesso(){
+  const el = document.getElementById('acessoInfo');
+  if(!el || !contaAtual) return;
+  const gente = pessoas();
+  const quantos = (contaAtual.membros || []).length;
+  let pendente = '';
+  try{
+    const abertos = await db.collection('convites').where('contaId','==',contaAtual.id).get();
+    if(!abertos.empty){
+      pendente = abertos.docs.map(d=>`
+        <div class="ent-row">
+          <div class="ent-ic">✉️</div>
+          <div class="ent-mid">
+            <div class="ent-nome">${escapeHtml(d.id)}</div>
+            <div class="ent-fonte">convite aguardando</div>
+          </div>
+          <button class="plan-del" onclick="removerConvite('${escapeHtml(d.id)}')">✕</button>
+        </div>`).join('');
+    }
+  }catch(e){
+    /* a consulta por contaId pode ser barrada pelas regras; nao e critico */
+    console.warn('não consegui listar convites:', e.code || e.message);
+  }
+  el.innerHTML = `
+    <div class="derived" style="margin-bottom:12px">
+      <div class="derived-row"><span class="d-lbl">Espaço</span><span class="d-val">${escapeHtml(contaAtual.nome)}</span></div>
+      <div class="derived-row"><span class="d-lbl">Pessoas</span><span class="d-val">${escapeHtml(gente.join(' & '))}</span></div>
+      <div class="derived-row"><span class="d-lbl">Com acesso</span><span class="d-val">${quantos}</span></div>
+    </div>
+    ${pendente}`;
+}
+
+async function convidar(){
+  const campo = document.getElementById('convidarEmail');
+  const msg = document.getElementById('convidarMsg');
+  const email = campo.value.trim().toLowerCase();
+  msg.textContent = '';
+  if(!email || email.indexOf('@') < 0){
+    msg.style.color = 'var(--stamp)';
+    msg.textContent = 'Escreva um e-mail válido.';
+    return;
+  }
+  if(email === (usuarioAtual.email||'').toLowerCase()){
+    msg.style.color = 'var(--stamp)';
+    msg.textContent = 'Esse é o seu próprio e-mail.';
+    return;
+  }
+  const btn = document.getElementById('btnConvidar');
+  btn.disabled = true;
+  try{
+    await convidarParaConta(email);
+    msg.style.color = 'var(--sage)';
+    msg.textContent = '✓ Convite criado. Peça para essa pessoa criar o acesso com esse mesmo e-mail.';
+    campo.value = '';
+    renderAcesso();
+  }catch(e){
+    console.error('Não foi possível convidar:', e);
+    msg.style.color = 'var(--stamp)';
+    msg.textContent = 'Não foi possível convidar. Tente de novo.';
+  }
+  btn.disabled = false;
+}
+
+async function removerConvite(email){
+  if(!confirm(`Cancelar o convite de ${email}?`)) return;
+  try{
+    await cancelarConvite(email);
+    renderAcesso();
+  }catch(e){
+    console.error(e);
+    alert('Não foi possível cancelar.');
+  }
+}
+
+/* Renomear o espaço e as pessoas */
+async function salvarNomesDaConta(){
+  const nome = document.getElementById('editNomeConta').value.trim();
+  const p1 = document.getElementById('editPessoa1').value.trim();
+  const p2 = document.getElementById('editPessoa2').value.trim();
+  const msg = document.getElementById('convidarMsg');
+  if(!nome || !p1 || !p2){
+    msg.style.color = 'var(--stamp)';
+    msg.textContent = 'Preencha o nome do espaço e os dois nomes.';
+    return;
+  }
+  try{
+    await contaRef().update({ nome, pessoas: [p1, p2] });
+    contaAtual.nome = nome;
+    contaAtual.pessoas = [p1, p2];
+    aplicarNomeDaConta();
+    buildQuemToggle();
+    renderPainel();
+    renderAcesso();
+    msg.style.color = 'var(--sage)';
+    msg.textContent = '✓ Salvo.';
+  }catch(e){
+    console.error(e);
+    msg.style.color = 'var(--stamp)';
+    msg.textContent = 'Não foi possível salvar.';
+  }
+  setTimeout(()=>{ msg.textContent=''; }, 3000);
 }
 
 /* ---------- tabs ---------- */
@@ -2306,10 +2628,11 @@ function renderPainel(){
   }
 
   /* Para onde foi */
-  const porQuem = {Felipe:0, Layla:0};
+  const porQuem = {}; pessoas().forEach(n=>porQuem[n]=0);
   gastos.forEach(e=>{ porQuem[e.quem] = (porQuem[e.quem]||0) + e.valor; });
-  document.getElementById('resFelipe').textContent = fmt(porQuem.Felipe||0);
-  document.getElementById('resLayla').textContent = fmt(porQuem.Layla||0);
+  const gente = pessoas();
+  document.getElementById('resFelipe').textContent = fmt(porQuem[gente[0]]||0);
+  document.getElementById('resLayla').textContent = fmt(porQuem[gente[1]]||0);
 
   const porCat = {};
   gastos.forEach(e=>{ porCat[e.categoria] = (porCat[e.categoria]||0) + e.valor; });
