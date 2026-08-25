@@ -503,6 +503,15 @@
     font-size:12.5px; line-height:1.55; color:var(--ink); text-align:left;
   }
   .aviso-legado strong{color:var(--sage);}
+
+  .tut-secao{margin-top:18px; text-align:left;}
+  .tut-titulo{
+    font-family:'JetBrains Mono',monospace; font-size:10.5px; text-transform:uppercase;
+    letter-spacing:.1em; color:var(--ink-soft); padding-bottom:7px; margin-bottom:4px;
+    border-bottom:1px solid var(--line);
+  }
+  .tut-secao label{margin-top:10px;}
+  .tut-secao .valor-row input{font-size:16px;}
 </style>
 </head>
 <body>
@@ -555,6 +564,40 @@
   <p class="share-hint">Se você foi convidado por alguém, entre com o mesmo e-mail que recebeu o convite e o app junta vocês automaticamente.</p>
 </div>
 
+
+<div id="telaTutorial" class="lock hidden">
+  <div class="lock-card" style="max-width:460px">
+    <div class="cover-eyebrow" style="color:var(--stamp)">Quase lá</div>
+    <h2>Só o essencial</h2>
+    <p>Preencha o que já souber. Tudo isso é editável depois na aba Plano, e nada aqui é obrigatório.</p>
+
+    <div class="tut-secao">
+      <div class="tut-titulo">Quanto entra por mês</div>
+      <label id="tutLabel1">Pessoa 1</label>
+      <div class="valor-row"><span>R$</span><input type="text" id="tutRenda1" inputmode="decimal" placeholder="0,00"></div>
+      <label id="tutLabel2">Pessoa 2</label>
+      <div class="valor-row"><span>R$</span><input type="text" id="tutRenda2" inputmode="decimal" placeholder="0,00"></div>
+      <label>Outra renda (opcional)</label>
+      <div class="valor-row"><span>R$</span><input type="text" id="tutRenda3" inputmode="decimal" placeholder="0,00"></div>
+    </div>
+
+    <div class="tut-secao">
+      <div class="tut-titulo">Contas que chegam todo mês</div>
+      <label>Aluguel ou financiamento</label>
+      <div class="valor-row"><span>R$</span><input type="text" id="tutFixo1" inputmode="decimal" placeholder="0,00"></div>
+      <label>Luz, água e internet, somados</label>
+      <div class="valor-row"><span>R$</span><input type="text" id="tutFixo2" inputmode="decimal" placeholder="0,00"></div>
+      <label>Mercado no mês</label>
+      <div class="valor-row"><span>R$</span><input type="text" id="tutFixo3" inputmode="decimal" placeholder="0,00"></div>
+    </div>
+
+    <div class="derived" id="tutPrevia" style="margin-top:16px"></div>
+
+    <button class="btn-primary" id="btnTutorial" onclick="concluirTutorial()">Começar a usar</button>
+    <button class="btn-ghost" style="width:100%" onclick="pularTutorial()">Preencher depois</button>
+  </div>
+  <p class="share-hint">Depois disso você lança os gastos na aba Lançar e acompanha tudo no Painel.</p>
+</div>
 
 <div id="app" class="hidden">
   <header class="cover">
@@ -945,7 +988,7 @@ auth.onAuthStateChanged(user=>{
 /* Deixa uma tela so no ar. Antes, uma falha no boot trazia o login de
    volta sem esconder o app, e as duas telas apareciam empilhadas. */
 function mostrarSomente(id){
-  ['carregando','lockScreen','telaConta','app'].forEach(t=>{
+  ['carregando','lockScreen','telaConta','telaTutorial','app'].forEach(t=>{
     document.getElementById(t).classList.toggle('hidden', t !== id);
   });
 }
@@ -988,6 +1031,79 @@ function mensagemDeErro(e){
   /* invalid-credential, wrong-password e user-not-found viram a mesma
      mensagem de propósito: não entregar se o e-mail existe ou não. */
   return 'E-mail ou senha incorretos.';
+}
+
+/* ---------- primeiros passos ----------
+   So aparece para quem esta comecando do zero. Quem trouxe historico de
+   antes ja tem o plano preenchido e vai direto para o app. */
+
+function mostrarTutorial(){
+  const gente = pessoas();
+  document.getElementById('tutLabel1').textContent = gente[0];
+  document.getElementById('tutLabel2').textContent = gente[1];
+  ['tutRenda1','tutRenda2','tutRenda3','tutFixo1','tutFixo2','tutFixo3'].forEach(id=>{
+    const el = document.getElementById(id);
+    el.value = '';
+    el.oninput = previaTutorial;
+  });
+  previaTutorial();
+  mostrarSomente('telaTutorial');
+}
+
+function valorTut(id){ return parseValor(document.getElementById(id).value) || 0; }
+
+function previaTutorial(){
+  const entra = valorTut('tutRenda1') + valorTut('tutRenda2') + valorTut('tutRenda3');
+  const sai = valorTut('tutFixo1') + valorTut('tutFixo2') + valorTut('tutFixo3');
+  const sobra = entra - sai;
+  document.getElementById('tutPrevia').innerHTML =
+    `<div class="derived-row"><span class="d-lbl">Entra por mês</span><span class="d-val">${fmt(entra)}</span></div>
+     <div class="derived-row"><span class="d-lbl">Contas do mês</span><span class="d-val">${fmt(-sai)}</span></div>
+     <div class="derived-row strong"><span class="d-lbl">Sobra</span>
+       <span class="d-val ${sobra>=0?'bal-good':'bal-bad'}">${fmt(sobra)}</span></div>`;
+}
+
+async function concluirTutorial(){
+  const gente = pessoas();
+  const btn = document.getElementById('btnTutorial');
+  btn.disabled = true;
+  btn.textContent = 'Salvando…';
+  plano.renda = [
+    {nome:'Salário ' + gente[0], valor: valorTut('tutRenda1'), ativo:true, obs:''},
+    {nome:'Salário ' + gente[1], valor: valorTut('tutRenda2'), ativo:true, obs:''},
+    {nome:'Outra renda', valor: valorTut('tutRenda3'), ativo: valorTut('tutRenda3') > 0, obs:''}
+  ];
+  plano.fixos = [
+    {nome:'Aluguel / financiamento', valor: valorTut('tutFixo1'), obs:''},
+    {nome:'Luz, água e internet', valor: valorTut('tutFixo2'), obs:''}
+  ];
+  plano.variaveis = [
+    {nome:'Mercado', valor: valorTut('tutFixo3'), obs:''}
+  ];
+  plano.contatos = gente.map(n=>({nome:n, telefone:''}));
+  plano.atualizadoEm = hojeISO();
+  try{
+    await cfgRef('orcamento').set(plano);
+  }catch(e){
+    console.error('não deu para salvar o plano inicial:', e);
+  }
+  entrarNoApp();
+}
+
+function pularTutorial(){ entrarNoApp(); }
+
+async function entrarNoApp(){
+  mostrarSomente('app');
+  if(!appIniciado){
+    appIniciado = true;
+    try{ await boot(); }
+    catch(e){
+      console.error('Falha ao carregar:', e);
+      document.getElementById('headerSub').textContent = 'Erro ao carregar — recarregue a página.';
+    }
+  } else {
+    renderPlano(); renderPainel();
+  }
 }
 
 /* ---------- criar acesso e espaço ---------- */
@@ -1070,21 +1186,29 @@ async function criarEspaco(){
   if(p1.toLowerCase() === p2.toLowerCase()){ err.textContent = 'Os dois nomes precisam ser diferentes.'; return; }
   const btn = document.getElementById('btnCriarConta');
   btn.disabled = true;
+  btn.textContent = 'Conferindo o nome…';
+  const livre = await nomeDisponivelPara(nome, null);
+  if(!livre.ok){
+    err.textContent = livre.motivo;
+    btn.disabled = false;
+    btn.textContent = 'Criar espaço';
+    return;
+  }
   btn.textContent = 'Criando…';
   try{
     await criarConta(nome, p1, p2);
-    mostrarSomente('app');
-    if(!appIniciado){
-      appIniciado = true;
-      try{ await boot(); }
-      catch(e){
-        console.error('Falha ao carregar depois de criar:', e);
-        document.getElementById('headerSub').textContent = 'Erro ao carregar — recarregue a página.';
-      }
-    }
+    /* Se havia historico do caderno antigo, ele ja vem preenchido e o
+       tutorial nao faz sentido; so quem comeca do zero passa por ele. */
+    let trouxeHistorico = false;
+    try{ trouxeHistorico = await migrarLegadoParaConta(); }
+    catch(e){ console.warn('nada a migrar:', e && (e.code || e.message)); }
+    if(trouxeHistorico) await entrarNoApp();
+    else mostrarTutorial();
   }catch(e){
     console.error('Não foi possível criar o espaço:', e);
-    err.textContent = 'Não foi possível criar. Tente de novo.';
+    err.textContent = e && e.code === 'permission-denied'
+      ? 'Esse nome de espaço acabou de ser usado por outra pessoa. Escolha outro.'
+      : 'Não foi possível criar. Tente de novo.';
     btn.disabled = false;
     btn.textContent = 'Criar espaço';
   }
@@ -1150,6 +1274,47 @@ function pessoas(){
     ? contaAtual.pessoas : ['Eu', 'Par'];
 }
 
+/* ---------- nome do espaço, único entre todos ----------
+   Cada nome vira uma "chave" em nomes/{apelido}. As regras so deixam criar,
+   nunca sobrescrever, entao dois casais nao ficam com o mesmo nome mesmo se
+   tentarem ao mesmo tempo. */
+
+function apelidoDoNome(nome){
+  return String(nome||'')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')  // tira acento
+    .toLowerCase().trim()
+    .replace(/[^a-z0-9]+/g,'-')
+    .replace(/^-+|-+$/g,'');
+}
+
+async function nomeDisponivelPara(nome, contaIdAtual){
+  const apelido = apelidoDoNome(nome);
+  if(!apelido) return {ok:false, motivo:'Escreva um nome com pelo menos uma letra ou número.'};
+  if(apelido.length < 3) return {ok:false, motivo:'O nome precisa de pelo menos 3 letras.'};
+  try{
+    const doc = await db.collection('nomes').doc(apelido).get();
+    if(doc.exists && doc.data().contaId !== contaIdAtual){
+      return {ok:false, motivo:'Já existe um espaço com esse nome. Escolha outro.'};
+    }
+  }catch(e){
+    console.warn('não deu para checar o nome:', e.code || e.message);
+  }
+  return {ok:true, apelido};
+}
+
+/* Reserva o nome. Se alguem tiver reservado no meio do caminho, as regras
+   recusam e a pessoa recebe o aviso em vez de ficar com o nome duplicado. */
+async function reservarNome(nome, contaId){
+  const apelido = apelidoDoNome(nome);
+  await db.collection('nomes').doc(apelido).set({ contaId, nome, criadoEm: new Date().toISOString() });
+  return apelido;
+}
+async function liberarNome(apelido){
+  if(!apelido) return;
+  try{ await db.collection('nomes').doc(apelido).delete(); }
+  catch(e){ console.warn('não deu para liberar o nome antigo:', e.code || e.message); }
+}
+
 /* Descobre em qual conta a pessoa esta: a que ja usa, a que foi convidada,
    ou nenhuma (ai o app pede para criar). */
 async function resolverConta(user){
@@ -1174,6 +1339,7 @@ async function carregarConta(contaId){
   contaAtual = {
     id: contaId,
     nome: d.nome || 'Nossa conta',
+    apelido: d.apelido || '',
     membros: d.membros || [],
     pessoas: Array.isArray(d.pessoas) && d.pessoas.length ? d.pessoas : ['Eu','Par']
   };
@@ -1199,8 +1365,18 @@ async function entrarPorConvite(contaId, email){
 /* Cria uma conta nova, com quem esta criando como unico membro. */
 async function criarConta(nomeDaConta, nomeDePessoa1, nomeDePessoa2){
   const ref = db.collection('contas').doc();
+  /* A reserva do nome depende de uma regra nova no Firestore. Se ela ainda
+     nao estiver publicada, criar a conta e mais importante do que garantir
+     o nome unico — a garantia passa a valer assim que as regras subirem. */
+  let apelido = '';
+  try{
+    apelido = await reservarNome(nomeDaConta, ref.id);
+  }catch(e){
+    console.warn('não deu para reservar o nome:', e && (e.code || e.message));
+  }
   await ref.set({
     nome: nomeDaConta,
+    apelido,
     membros: [usuarioAtual.uid],
     pessoas: [nomeDePessoa1, nomeDePessoa2],
     criadoEm: new Date().toISOString()
@@ -1291,6 +1467,25 @@ const CATEGORIES = [
 /* Plano/orcamento em branco: cada casal preenche o seu na aba Plano.
    Os totais (renda, fixos, sobra) sao sempre calculados, nunca guardados,
    para nao ficarem desatualizados a cada edicao. */
+/* Categorias de entrada: dinheiro chegando, nao saindo. */
+const CATEGORIAS_ENTRADA = [
+  {id:'salario',    em:'💼', label:'Salário'},
+  {id:'loja',       em:'🏷️', label:'Loja'},
+  {id:'freela',     em:'🧰', label:'Freela'},
+  {id:'venda',      em:'💱', label:'Venda'},
+  {id:'reembolso',  em:'↩️', label:'Reembolso'},
+  {id:'presente',   em:'🎁', label:'Presente'},
+  {id:'rendimento', em:'▲', label:'Rendimento'},
+  {id:'outra',      em:'✦', label:'Outra'}
+];
+let tipoLanc = 'gasto';
+function catsDoTipo(){ return tipoLanc === 'entrada' ? CATEGORIAS_ENTRADA : CATEGORIES; }
+function acharCategoria(id, tipo){
+  const lista = tipo === 'entrada' ? CATEGORIAS_ENTRADA : CATEGORIES;
+  return lista.find(c=>c.id===id) || {em:'✦', label:id||'—'};
+}
+function ehEntrada(e){ return e && e.tipo === 'entrada'; }
+
 const PLANO_PADRAO = {
   observacao: '',
   atualizadoEm: '',
@@ -2628,9 +2823,21 @@ async function salvarNomesDaConta(){
     msg.textContent = 'Preencha o nome do espaço e os dois nomes.';
     return;
   }
+  const livre = await nomeDisponivelPara(nome, contaAtual.id);
+  if(!livre.ok){
+    msg.style.color = 'var(--stamp)';
+    msg.textContent = livre.motivo;
+    return;
+  }
   try{
-    await contaRef().update({ nome, pessoas: [p1, p2] });
+    const apelidoAntigo = contaAtual.apelido;
+    if(livre.apelido !== apelidoAntigo){
+      await reservarNome(nome, contaAtual.id);
+      await liberarNome(apelidoAntigo);
+    }
+    await contaRef().update({ nome, apelido: livre.apelido, pessoas: [p1, p2] });
     contaAtual.nome = nome;
+    contaAtual.apelido = livre.apelido;
     contaAtual.pessoas = [p1, p2];
     aplicarNomeDaConta();
     buildQuemToggle();
@@ -2641,7 +2848,9 @@ async function salvarNomesDaConta(){
   }catch(e){
     console.error(e);
     msg.style.color = 'var(--stamp)';
-    msg.textContent = 'Não foi possível salvar.';
+    msg.textContent = e && e.code === 'permission-denied'
+      ? 'Esse nome já pertence a outro espaço.'
+      : 'Não foi possível salvar.';
   }
   setTimeout(()=>{ msg.textContent=''; }, 3000);
 }
