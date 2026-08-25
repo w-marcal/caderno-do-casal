@@ -51,6 +51,18 @@ service cloud.firestore {
       allow delete: if logado() && membro(resource.data.contaId);
     }
 
+    // Nome do espaco, unico entre todos. So permite criar, nunca sobrescrever:
+    // e isso que garante que dois casais nao fiquem com o mesmo nome, mesmo
+    // que tentem no mesmo instante.
+    match /nomes/{apelido} {
+      allow read: if logado();
+      allow create: if logado()
+        && request.resource.data.contaId is string
+        && request.resource.data.nome is string;
+      allow delete: if logado() && membro(resource.data.contaId);
+      allow update: if false;
+    }
+
     match /contas/{contaId} {
       // ao criar, a pessoa precisa entrar como unico membro
       allow create: if logado()
