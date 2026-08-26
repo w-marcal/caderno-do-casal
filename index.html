@@ -5,6 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Conta a Dois</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<!-- Adianta DNS e conexao dos servidores do Firebase: quando o app precisa
+     deles, o caminho ja esta aberto. -->
+<link rel="preconnect" href="https://www.gstatic.com">
+<link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
+<link rel="preconnect" href="https://identitytoolkit.googleapis.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
@@ -1117,6 +1123,14 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 const auth = firebase.auth();
 
+/* Guarda os dados no proprio aparelho. Na volta, o app desenha na hora com o
+   que ja tem e confere com o servidor em segundo plano, em vez de esperar a
+   rede para so entao mostrar alguma coisa.
+   Pode falhar (aba duplicada, navegador antigo, modo anonimo) e nesse caso o
+   app segue normal, so sem o ganho de velocidade. */
+db.enablePersistence({ synchronizeTabs: true })
+  .catch(e=>console.warn('cache local indisponível:', e && e.code));
+
 /* Login por e-mail e senha. Só as contas que vocês criarem no Firebase
    conseguem ler ou gravar — as regras do Firestore checam o e-mail.
    A sessão fica guardada no aparelho, então não precisa entrar toda vez. */
@@ -1501,6 +1515,7 @@ async function carregarConta(contaId){
     id: contaId,
     nome: d.nome || 'Nossa conta',
     apelido: d.apelido || '',
+    migradoEm: d.migradoEm || '',
     membros: d.membros || [],
     pessoas: Array.isArray(d.pessoas) && d.pessoas.length ? d.pessoas : ['Eu','Par']
   };
@@ -1569,6 +1584,11 @@ async function cancelarConvite(email){
    ler aqueles caminhos (so os dois e-mails originais, pelas regras) traz o
    historico para dentro da conta nova. Roda uma vez. */
 async function migrarLegadoParaConta(){
+  /* Ja migrou uma vez? Entao nao ha o que buscar de novo. Antes isto rodava
+     a cada abertura: listava a colecao antiga inteira, reescrevia todos os
+     lancamentos e fazia mais seis consultas, so para concluir que nada
+     mudou. Era o grosso da demora para entrar. */
+  if(contaAtual && contaAtual.migradoEm) return false;
   let algo = false;
   try{
     const antigos = await db.collection('lancamentos').get();
@@ -1599,9 +1619,13 @@ async function migrarLegadoParaConta(){
       }
     }catch(e){ console.warn('sem ' + nome + ' antigo:', e.code || e.message); }
   }
-  if(algo){
-    try{ await contaRef().update({ migradoEm: new Date().toISOString() }); }catch(e){}
-  }
+  /* Carimba sempre, inclusive quando nao havia nada a migrar: o que importa
+     e nao repetir a busca a cada abertura. */
+  const carimbo = new Date().toISOString();
+  try{
+    await contaRef().update({ migradoEm: carimbo });
+    if(contaAtual) contaAtual.migradoEm = carimbo;
+  }catch(e){}
   return algo;
 }
 
