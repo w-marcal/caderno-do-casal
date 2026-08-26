@@ -671,6 +671,11 @@
     color:var(--ink-soft); padding:11px; border-radius:10px; font-size:13px; font-weight:600;
   }
   .btn-nota:active{border-color:var(--gold); color:var(--gold);}
+
+  .qr-ou{
+    text-align:center; font-size:11px; color:var(--ink-soft); margin:12px 0 10px;
+    text-transform:uppercase; letter-spacing:.1em;
+  }
 </style>
 </head>
 <body>
@@ -1098,7 +1103,14 @@
       <div class="qr-mira"></div>
     </div>
     <div id="qrResultado"></div>
-    <label style="margin-top:12px">Ou cole o link da nota</label>
+    <div class="qr-ou">ou</div>
+    <label for="qrFoto" class="btn-nota" style="display:block; text-align:center; margin:0 0 12px">
+      🖼️ Ler o total por foto da nota
+    </label>
+    <input type="file" id="qrFoto" accept="image/*" capture="environment" class="hidden"
+           onchange="if(this.files[0]) lerFotoDaNota(this.files[0]); this.value='';">
+
+    <label style="margin-top:4px">Ou cole o link da nota</label>
     <input type="text" id="qrColar" placeholder="https://www...fazenda...?p=..." oninput="colarLinkNota()">
   </div>
 </div>
@@ -3717,6 +3729,186 @@ function lerQrNota(texto){
   };
 }
 
+/* ---------- achar o valor total no texto lido da foto ----------
+   A leitura por imagem erra: troca $ por S, junta e separa espacos, perde
+   acento. Entao procuramos pelo rotulo (VALOR TOTAL e parecidos) e, na
+   mesma linha ou na seguinte, o primeiro numero com centavos.
+   Linhas de imposto, troco e desconto sao descartadas de proposito: elas
+   trazem numeros que nao sao o que se pagou. */
+
+const ROTULOS_TOTAL = [
+  {re: /VALOR\s*TOTAL/i,        peso: 10},
+  {re: /TOTAL\s*A?\s*PAGAR/i,   peso: 10},
+  {re: /VALOR\s*A\s*PAGAR/i,    peso: 10},
+  {re: /VL\.?\s*TOTAL/i,        peso: 9},
+  {re: /TOTAL\s*R?\$?S?\s*:?/i, peso: 6},
+  {re: /^TOTAL\b/i,             peso: 6}
+];
+const LINHAS_A_IGNORAR = /TRIBUT|APROXIMAD|IBPT|TROCO|DESCONT|ACRESCIM|ITENS|QTD|LEI\s*FEDERAL|ICMS|FONTE/i;
+
+function normalizarLinhaOcr(l){
+  return String(l||'')
+    .replace(/[Oo](?=\d)/g,'0')      // O antes de digito costuma ser zero
+    .replace(/(?<=\d)[Oo]/g,'0')
+    .replace(/\s{2,}/g,' ')
+    .trim();
+}
+
+/* Pega o ultimo numero com centavos da linha (o total fica a direita). */
+function numerosDaLinha(linha){
+  /* Pega qualquer numero terminado em centavos, com ou sem separador de
+     milhar: 13.80, 1.234,56, 1234.56, 1 234,56. */
+  const achados = linha.match(/\d[\d.\s]*[,.]\d{2}(?!\d)/g) || [];
+  return achados.map(t=>{
+    let s = t.replace(/\s/g,'');
+    if(s.indexOf(',') >= 0){
+      s = s.replace(/\./g,'').replace(',','.');   // virgula manda: e o decimal
+    } else {
+      const partes = s.split('.');                // o ultimo ponto e o decimal
+      if(partes.length > 2) s = partes.slice(0,-1).join('') + '.' + partes[partes.length-1];
+    }
+    return Number(s);
+  }).filter(n=>!isNaN(n) && n > 0);
+}
+
+function acharTotalNaNota(texto){
+  const linhas = String(texto||'').split(/\r?\n/).map(normalizarLinhaOcr).filter(Boolean);
+  let melhor = null;
+
+  linhas.forEach((linha, i)=>{
+    if(LINHAS_A_IGNORAR.test(linha)) return;
+    const rotulo = ROTULOS_TOTAL.find(r=>r.re.test(linha));
+    if(!rotulo) return;
+    /* numero na propria linha; se nao houver, tenta a linha de baixo */
+    let nums = numerosDaLinha(linha);
+    if(!nums.length && linhas[i+1] && !LINHAS_A_IGNORAR.test(linhas[i+1])){
+      nums = numerosDaLinha(linhas[i+1]);
+    }
+    if(!nums.length) return;
+    const valor = nums[nums.length - 1];
+    if(!melhor || rotulo.peso > melhor.peso) melhor = {valor, peso: rotulo.peso, linha};
+  });
+
+  if(melhor) return {ok:true, valor: melhor.valor, linha: melhor.linha};
+  return {ok:false, motivo:'Não achei a linha do total nesta foto.'};
+}
+
+/* ---------- ler o total a partir de uma foto ----------
+   A biblioteca de leitura so e baixada quando a pessoa usa, para nao pesar
+   a abertura do app. O resultado nunca entra sozinho: e mostrado para
+   conferencia, porque numero errado em app de dinheiro passa despercebido. */
+
+const URL_LEITOR_TEXTO = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
+let leitorTextoPronto = false;
+
+async function carregarLeitorTexto(){
+  if(leitorTextoPronto && window.Tesseract) return;
+  await new Promise((resolve, reject)=>{
+    const tag = document.createElement('script');
+    tag.src = URL_LEITOR_TEXTO;
+    tag.onload = resolve;
+    tag.onerror = ()=>reject(new Error('não consegui baixar o leitor'));
+    document.head.appendChild(tag);
+  });
+  leitorTextoPronto = true;
+}
+
+/* Foto de papel amassado le melhor em cinza e com contraste esticado. */
+function prepararImagem(img){
+  const maxLargura = 1500;
+  const escala = Math.min(1, maxLargura / img.naturalWidth);
+  const c = document.createElement('canvas');
+  c.width = Math.round(img.naturalWidth * escala);
+  c.height = Math.round(img.naturalHeight * escala);
+  const ctx = c.getContext('2d');
+  ctx.drawImage(img, 0, 0, c.width, c.height);
+  const dados = ctx.getImageData(0, 0, c.width, c.height);
+  const p = dados.data;
+  let soma = 0;
+  for(let i = 0; i < p.length; i += 4){
+    const cinza = (p[i]*0.299 + p[i+1]*0.587 + p[i+2]*0.114);
+    p[i] = p[i+1] = p[i+2] = cinza;
+    soma += cinza;
+  }
+  const media = soma / (p.length/4);
+  /* Contraste em torno da media da propria foto, para nao estourar em
+     imagem clara nem sumir em imagem escura. */
+  for(let i = 0; i < p.length; i += 4){
+    const v = Math.max(0, Math.min(255, (p[i] - media) * 1.7 + 140));
+    p[i] = p[i+1] = p[i+2] = v;
+  }
+  ctx.putImageData(dados, 0, 0);
+  return c;
+}
+
+async function lerFotoDaNota(arquivo){
+  const alvo = document.getElementById('qrResultado');
+  const passo = (t)=>{ alvo.innerHTML = `<div class="ajuda-dica" style="margin:0">${t}</div>`; };
+  passo('Preparando a foto…');
+  try{
+    const img = await new Promise((res, rej)=>{
+      const i = new Image();
+      i.onload = ()=>res(i);
+      i.onerror = ()=>rej(new Error('imagem inválida'));
+      i.src = URL.createObjectURL(arquivo);
+    });
+    const canvas = prepararImagem(img);
+    URL.revokeObjectURL(img.src);
+
+    passo('Baixando o leitor de texto (só na primeira vez)…');
+    await carregarLeitorTexto();
+
+    passo('Lendo a nota… isso leva alguns segundos.');
+    const r = await Tesseract.recognize(canvas, 'por', {
+      logger: m => {
+        if(m.status === 'recognizing text'){
+          passo('Lendo a nota… ' + Math.round((m.progress||0)*100) + '%');
+        }
+      }
+    });
+    const texto = (r && r.data && r.data.text) || '';
+    const achado = acharTotalNaNota(texto);
+    mostrarTotalLido(achado, texto);
+  }catch(e){
+    console.warn('falha ao ler a foto:', e && e.message);
+    alvo.innerHTML = `<div class="ajuda-aviso" style="margin:0">
+      Não consegui ler a foto${e && e.message === 'não consegui baixar o leitor' ? ' (o leitor não baixou; confira a internet)' : ''}.
+      Digite o valor à mão — leva um instante.</div>`;
+  }
+}
+
+function mostrarTotalLido(achado, texto){
+  const alvo = document.getElementById('qrResultado');
+  if(!achado.ok){
+    alvo.innerHTML = `<div class="ajuda-aviso" style="margin:0">
+      ${achado.motivo} Tente outra foto, mais reta e sem sombra, ou digite o valor à mão.</div>`;
+    return;
+  }
+  /* Sempre para conferencia: a leitura erra, e numero errado passa batido. */
+  alvo.innerHTML = `
+    <div class="ajuda-dica" style="margin:0 0 10px">Confira antes de usar. A leitura por foto às vezes troca um dígito.</div>
+    <label style="margin-top:0">Valor lido na nota</label>
+    <div class="valor-row"><span>R$</span>
+      <input type="text" id="totalLido" inputmode="decimal" value="${achado.valor.toFixed(2).replace('.', ',')}">
+    </div>
+    <div class="plan-hint" style="margin:6px 0 12px">encontrado em: "${escapeHtml(achado.linha)}"</div>
+    <button class="btn-primary" onclick="usarTotalLido()">Usar este valor</button>`;
+}
+
+function usarTotalLido(){
+  const v = parseValor(document.getElementById('totalLido').value) || 0;
+  if(v <= 0){ alert('Digite um valor válido.'); return; }
+  setTipoLanc('gasto');
+  document.getElementById('fValor').value = v.toFixed(2).replace('.', ',');
+  if(!document.getElementById('fData').value) document.getElementById('fData').valueAsDate = new Date();
+  fecharLeitorNota();
+  showTab('lancar');
+  const msg = document.getElementById('saveMsg');
+  msg.style.color = 'var(--sage)';
+  msg.textContent = '✓ Valor lido da foto. Escolha a categoria e carimbe.';
+  setTimeout(()=>{ msg.textContent=''; }, 6000);
+}
+
 /* ---------- camera e tela do leitor ---------- */
 
 let fluxoCamera = null, lendoQr = false;
@@ -3899,7 +4091,9 @@ const AJUDA = [
       ]},
       {tipo:'aviso', texto:'O valor só vem quando a nota usa a versão do QR que o carrega. Quando não vier, o app avisa, preenche a data e a loja, e você digita só o valor.'},
       {tipo:'texto', html:'O botão <b>Abrir a nota e ver os produtos</b> leva ao site oficial da Secretaria da Fazenda, onde aparece a lista de itens. O app não consegue trazer os produtos sozinho: eles não estão no QR, e sites de governo não permitem que outro site leia suas páginas.'},
-      {tipo:'dica', texto:'Se a câmera não abrir, use a câmera do próprio celular no QR, copie o link que aparecer e cole no campo de baixo. Funciona igual.'}
+      {tipo:'dica', texto:'Se a câmera não abrir, use a câmera do próprio celular no QR, copie o link que aparecer e cole no campo de baixo. Funciona igual.'},
+      {tipo:'texto', html:'<b>Ler o total por foto</b><br>Na mesma tela há a opção de fotografar a nota inteira. O app tenta achar a linha do total e <b>mostra o que leu para você conferir</b> antes de usar. Dá para corrigir ali mesmo.'},
+      {tipo:'aviso', texto:'A leitura por foto às vezes troca um dígito, principalmente em nota amassada ou com sombra. Por isso ela nunca preenche sozinha: confira o número antes de usar. Foto reta, bem iluminada e sem dobras acerta muito mais.'}
     ]
   },
   {
