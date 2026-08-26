@@ -655,6 +655,22 @@
     border-radius:9px; padding:10px 12px; margin-bottom:12px;
   }
   .ajuda-aviso::before{content:'Atenção  '; font-weight:700; color:var(--stamp); font-size:10.5px; letter-spacing:.06em;}
+
+  /* ---- leitor de nota ---- */
+  .qr-camera{
+    position:relative; width:100%; aspect-ratio:1; border-radius:12px;
+    overflow:hidden; background:#000; margin-bottom:12px;
+  }
+  .qr-camera video{width:100%; height:100%; object-fit:cover;}
+  .qr-mira{
+    position:absolute; inset:18%; border:2px solid rgba(255,255,255,.85);
+    border-radius:12px; box-shadow:0 0 0 100vmax rgba(0,0,0,.35);
+  }
+  .btn-nota{
+    width:100%; margin-bottom:16px; background:var(--paper); border:1.5px dashed var(--line);
+    color:var(--ink-soft); padding:11px; border-radius:10px; font-size:13px; font-weight:600;
+  }
+  .btn-nota:active{border-color:var(--gold); color:var(--gold);}
 </style>
 </head>
 <body>
@@ -760,6 +776,8 @@
             <button class="tipo-btn sel" id="tipoGasto" onclick="setTipoLanc('gasto')">− Gasto</button>
             <button class="tipo-btn" id="tipoEntrada" onclick="setTipoLanc('entrada')">+ Entrada</button>
           </div>
+
+          <button class="btn-nota" onclick="abrirLeitorNota()">📷 Ler nota fiscal pelo QR</button>
 
           <div class="section-label">Quem está lançando</div>
           <div class="who-toggle" id="quemToggle"></div>
@@ -1068,6 +1086,22 @@
 
     </main>
   </div>
+
+<div id="leitorNota" class="guia-fundo hidden">
+  <div class="ajuda-caixa" style="max-width:400px">
+    <button class="guia-fechar" onclick="fecharLeitorNota()" aria-label="fechar">✕</button>
+    <div class="ajuda-titulo">Ler nota fiscal</div>
+    <p class="ajuda-p" style="margin:8px 0 12px">Aponte a câmera para o QR da nota. O app preenche o que o código trouxer.</p>
+    <div id="qrAviso" class="hidden"></div>
+    <div id="qrCamera" class="qr-camera hidden">
+      <video id="qrVideo" playsinline muted></video>
+      <div class="qr-mira"></div>
+    </div>
+    <div id="qrResultado"></div>
+    <label style="margin-top:12px">Ou cole o link da nota</label>
+    <input type="text" id="qrColar" placeholder="https://www...fazenda...?p=..." oninput="colarLinkNota()">
+  </div>
+</div>
 
 <div id="ajuda" class="guia-fundo hidden">
   <div class="ajuda-caixa">
@@ -3600,6 +3634,192 @@ function assinarSonhos(){
   });
 }
 
+/* ---------- leitor de nota fiscal (NFC-e) ----------
+   O QR da nota nao traz os produtos: ele e um link para o site da Secretaria
+   da Fazenda do estado mais a chave de acesso. O que da para aproveitar sem
+   servidor proprio:
+     - a chave de acesso (44 digitos) traz o estado, o mes de emissao e o CNPJ
+     - na versao 1 do QR, o valor total (vNF) vem junto; na versao 2, nao vem
+   Entao preenchemos o que der e abrimos a nota para conferir o resto. */
+
+const UFS = {
+  '11':'RO','12':'AC','13':'AM','14':'RR','15':'PA','16':'AP','17':'TO',
+  '21':'MA','22':'PI','23':'CE','24':'RN','25':'PB','26':'PE','27':'AL','28':'SE','29':'BA',
+  '31':'MG','32':'ES','33':'RJ','35':'SP',
+  '41':'PR','42':'SC','43':'RS',
+  '50':'MS','51':'MT','52':'GO','53':'DF'
+};
+
+function formatarCnpj(c){
+  if(!c || c.length !== 14) return c || '';
+  return c.slice(0,2)+'.'+c.slice(2,5)+'.'+c.slice(5,8)+'/'+c.slice(8,12)+'-'+c.slice(12);
+}
+
+/* dhEmi vem em hexadecimal na versao 1 do QR. */
+function dataDoHex(hex){
+  if(!hex || !/^[0-9A-Fa-f]+$/.test(hex) || hex.length < 20) return '';
+  let texto = '';
+  for(let i = 0; i < hex.length; i += 2){
+    texto += String.fromCharCode(parseInt(hex.substr(i,2), 16));
+  }
+  const m = texto.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? m[1]+'-'+m[2]+'-'+m[3] : '';
+}
+
+function lerQrNota(texto){
+  const bruto = String(texto || '').trim();
+  if(!bruto) return { ok:false, motivo:'Nada foi lido.' };
+
+  /* A chave e o unico pedaco garantido: 44 digitos seguidos. */
+  const achouChave = bruto.replace(/\D/g,'').length >= 44 ? bruto.match(/\d{44}/) : null;
+  if(!achouChave) return { ok:false, motivo:'Isso não parece o QR de uma nota fiscal.' };
+  const chave = achouChave[0];
+
+  const uf = UFS[chave.slice(0,2)] || '';
+  const ano = '20' + chave.slice(2,4);
+  const mes = chave.slice(4,6);
+  const cnpj = chave.slice(6,20);
+
+  /* Campos separados por barra vertical, quando houver. */
+  let campos = [];
+  const p = bruto.match(/[?&]p=([^&\s]+)/);
+  if(p) campos = decodeURIComponent(p[1]).split('|');
+  else if(bruto.indexOf('|') >= 0) campos = bruto.split('|');
+
+  /* vNF: na versao 1 e um dos campos no formato 0.00. O primeiro que aparece
+     e o total; o seguinte costuma ser o ICMS, que e menor. */
+  let valor = 0;
+  const monetarios = campos.filter(c=>/^\d+\.\d{2}$/.test(c)).map(Number);
+  if(monetarios.length) valor = monetarios[0];
+
+  /* Alguns estados mandam vNF como parametro proprio. */
+  const pv = bruto.match(/[?&]vNF=([\d.]+)/i);
+  if(pv) valor = Number(pv[1]) || valor;
+
+  /* Data: dhEmi em hexadecimal, quando vier. Senao, o mes da chave. */
+  let data = '';
+  const hex = campos.find(c=>/^[0-9A-Fa-f]{20,}$/.test(c) && dataDoHex(c));
+  if(hex) data = dataDoHex(hex);
+  if(!data){
+    const hoje = hojeISO();
+    /* Se a nota e deste mes, o dia de hoje e o palpite certo na maioria das
+       vezes; se e de outro mes, cai no dia 1 para a pessoa ajustar. */
+    data = (hoje.slice(0,7) === ano+'-'+mes) ? hoje : (ano+'-'+mes+'-01');
+  }
+
+  const versao = campos.length >= 9 ? 1 : (campos.length ? 2 : 0);
+  return {
+    ok: true,
+    chave, uf, cnpj, valor, data, versao,
+    url: /^https?:\/\//i.test(bruto) ? bruto : '',
+    loja: 'Compra' + (uf ? ' em ' + uf : ''),
+    temValor: valor > 0
+  };
+}
+
+/* ---------- camera e tela do leitor ---------- */
+
+let fluxoCamera = null, lendoQr = false;
+
+function leitorDisponivel(){ return typeof BarcodeDetector !== 'undefined'; }
+
+async function abrirLeitorNota(){
+  document.getElementById('leitorNota').classList.remove('hidden');
+  document.getElementById('qrColar').value = '';
+  document.getElementById('qrResultado').innerHTML = '';
+  const aviso = document.getElementById('qrAviso');
+  if(!leitorDisponivel()){
+    aviso.className = 'ajuda-aviso';
+    aviso.innerHTML = 'Este navegador não abre a câmera para ler códigos. Use a câmera do próprio celular no QR da nota, copie o link que aparecer e cole no campo abaixo.';
+    document.getElementById('qrCamera').classList.add('hidden');
+    return;
+  }
+  aviso.className = 'hidden';
+  document.getElementById('qrCamera').classList.remove('hidden');
+  try{
+    fluxoCamera = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+    const video = document.getElementById('qrVideo');
+    video.srcObject = fluxoCamera;
+    await video.play();
+    lendoQr = true;
+    procurarQr();
+  }catch(e){
+    console.warn('câmera indisponível:', e && e.name);
+    aviso.className = 'ajuda-aviso';
+    aviso.innerHTML = 'Não consegui abrir a câmera. Verifique a permissão no navegador, ou cole o link da nota no campo abaixo.';
+    document.getElementById('qrCamera').classList.add('hidden');
+  }
+}
+
+async function procurarQr(){
+  if(!lendoQr) return;
+  const video = document.getElementById('qrVideo');
+  try{
+    const detector = new BarcodeDetector({ formats: ['qr_code'] });
+    const achados = await detector.detect(video);
+    if(achados && achados.length){
+      usarLeituraQr(achados[0].rawValue);
+      return;
+    }
+  }catch(e){ /* quadro ruim, tenta o proximo */ }
+  requestAnimationFrame(()=>setTimeout(procurarQr, 180));
+}
+
+function fecharLeitorNota(){
+  lendoQr = false;
+  if(fluxoCamera){
+    fluxoCamera.getTracks().forEach(t=>t.stop());
+    fluxoCamera = null;
+  }
+  document.getElementById('leitorNota').classList.add('hidden');
+}
+
+function colarLinkNota(){
+  usarLeituraQr(document.getElementById('qrColar').value);
+}
+
+function usarLeituraQr(texto){
+  const r = lerQrNota(texto);
+  const alvo = document.getElementById('qrResultado');
+  if(!r.ok){
+    alvo.innerHTML = `<div class="ajuda-aviso" style="margin:0">${r.motivo}</div>`;
+    return;
+  }
+  lendoQr = false;
+  if(fluxoCamera){ fluxoCamera.getTracks().forEach(t=>t.stop()); fluxoCamera = null; }
+  document.getElementById('qrCamera').classList.add('hidden');
+
+  const [a,m,d] = r.data.split('-');
+  alvo.innerHTML = `
+    <div class="derived" style="margin:0 0 12px">
+      <div class="derived-row"><span class="d-lbl">Valor</span>
+        <span class="d-val ${r.temValor?'bal-good':''}">${r.temValor ? fmt(r.valor) : 'não veio no código'}</span></div>
+      <div class="derived-row"><span class="d-lbl">Data</span><span class="d-val">${d}/${m}/${a}</span></div>
+      <div class="derived-row"><span class="d-lbl">Loja</span><span class="d-val" style="font-size:11px">${formatarCnpj(r.cnpj)}</span></div>
+    </div>
+    ${!r.temValor ? '<div class="ajuda-dica" style="margin-bottom:12px">Esta nota usa a versão do QR que não carrega o valor. Abra a nota para ver o total e digite no campo de valor.</div>' : ''}
+    ${r.url ? `<button class="btn-ghost" style="width:100%; margin-bottom:8px" onclick="window.open('${r.url.replace(/'/g,"%27")}','_blank')">Abrir a nota e ver os produtos</button>` : ''}
+    <button class="btn-primary" onclick='aplicarNotaNoLancamento(${JSON.stringify(JSON.stringify(r))})'>Usar no lançamento</button>`;
+}
+
+function aplicarNotaNoLancamento(json){
+  const r = JSON.parse(json);
+  setTipoLanc('gasto');
+  if(r.temValor) document.getElementById('fValor').value = r.valor.toFixed(2).replace('.', ',');
+  document.getElementById('fData').value = r.data;
+  const desc = document.getElementById('fDesc');
+  if(!desc.value.trim()) desc.value = 'Nota fiscal ' + formatarCnpj(r.cnpj);
+  fecharLeitorNota();
+  showTab('lancar');
+  const msg = document.getElementById('saveMsg');
+  msg.style.color = 'var(--sage)';
+  msg.textContent = r.temValor
+    ? '✓ Nota lida. Escolha a categoria e carimbe.'
+    : '✓ Nota lida. Digite o valor, escolha a categoria e carimbe.';
+  (r.temValor ? document.getElementById('fValor') : document.getElementById('fValor')).focus();
+  setTimeout(()=>{ msg.textContent=''; }, 6000);
+}
+
 /* ---------- central de ajuda ----------
    O tour de seis passos ensina o caminho das pedras na primeira vez.
    Isto aqui e o manual: fica no "?" e responde a duvida que aparece
@@ -3662,6 +3882,24 @@ const AJUDA = [
       ]},
       {tipo:'dica', texto:'O valor aceita vírgula do jeito que a gente escreve: 12,50 ou 1.234,56. Também aceita 12.50, se for mais fácil no seu teclado.'},
       {tipo:'texto', html:'<b>Para corrigir:</b> vá em <b>Extrato</b>, ache o lançamento e toque no ✕ para apagar. Ele pergunta antes. Depois é só lançar de novo com o valor certo.'}
+    ]
+  },
+  {
+    id: 'notafiscal',
+    icone: '📷',
+    titulo: 'Lançar lendo a nota fiscal',
+    resumo: 'Escanear o QR em vez de digitar',
+    blocos: [
+      {tipo:'passos', itens:[
+        'Na aba <b>Lançar</b>, toque em <b>Ler nota fiscal pelo QR</b>.',
+        'Aponte a câmera para o QR impresso no rodapé da nota.',
+        'O app mostra o que conseguiu ler: valor, data e a loja.',
+        'Toque em <b>Usar no lançamento</b>.',
+        'Escolha a categoria e toque em <b>Carimbar gasto</b>.'
+      ]},
+      {tipo:'aviso', texto:'O valor só vem quando a nota usa a versão do QR que o carrega. Quando não vier, o app avisa, preenche a data e a loja, e você digita só o valor.'},
+      {tipo:'texto', html:'O botão <b>Abrir a nota e ver os produtos</b> leva ao site oficial da Secretaria da Fazenda, onde aparece a lista de itens. O app não consegue trazer os produtos sozinho: eles não estão no QR, e sites de governo não permitem que outro site leia suas páginas.'},
+      {tipo:'dica', texto:'Se a câmera não abrir, use a câmera do próprio celular no QR, copie o link que aparecer e cole no campo de baixo. Funciona igual.'}
     ]
   },
   {
