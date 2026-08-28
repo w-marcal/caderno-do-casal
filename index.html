@@ -676,6 +676,20 @@
     text-align:center; font-size:11px; color:var(--ink-soft); margin:12px 0 10px;
     text-transform:uppercase; letter-spacing:.1em;
   }
+
+  /* ---- forma de pagamento ---- */
+  .forma-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-top:2px;}
+  .forma-chip{
+    padding:9px 2px; border-radius:9px; border:1.5px solid var(--line); background:#fff;
+    font-size:11px; text-align:center; color:var(--ink-soft); font-weight:600; line-height:1.2;
+    transition:transform .12s ease, box-shadow .12s ease, background .12s ease;
+  }
+  .forma-chip .em{display:block; font-size:16px; margin-bottom:2px;}
+  .forma-chip.sel{
+    border-color:var(--sage); background:var(--sage-bg); color:var(--sage);
+    box-shadow:0 2px 6px -2px rgba(75,122,91,.45); transform:translateY(-1px);
+  }
+  .forma-chip:active{transform:scale(.96);}
 </style>
 </head>
 <body>
@@ -796,6 +810,9 @@
           <label>Categoria</label>
           <div class="cat-grid" id="catGrid"></div>
 
+          <label id="formaLabel">Como pagou</label>
+          <div class="forma-grid" id="formaGrid"></div>
+
           <label>Descrição (opcional)</label>
           <input type="text" id="fDesc" placeholder="ex: feira, hidratante, uber">
 
@@ -855,6 +872,11 @@
             <div class="split-card"><div class="who" id="resFelipeLabel">—</div><div class="amt" id="resFelipe">R$ 0</div></div>
             <div class="split-card"><div class="who" id="resLaylaLabel">—</div><div class="amt" id="resLayla">R$ 0</div></div>
           </div>
+        </div>
+
+        <div class="card" id="cardCartao">
+          <div class="section-label">Cartão de crédito</div>
+          <div id="resCartao"></div>
         </div>
 
         <div class="card">
@@ -934,6 +956,28 @@
           <div id="planoDestino"></div>
           <div class="plan-warn hidden" id="destinoWarn"></div>
           <button class="plan-add" onclick="adicionarItem('destino')">+ adicionar destino</button>
+        </div>
+
+        <div class="card">
+          <div class="section-label">Cartão de crédito</div>
+          <div class="plan-hint">Com estes dois dias o app monta a fatura em aberto e mostra o que ainda vai chegar. Deixe em branco se não quiser acompanhar.</div>
+          <div class="mil-grid">
+            <div class="mil-field">
+              <div class="mil-lbl">Fecha no dia</div>
+              <div class="mil-box">
+                <input type="text" inputmode="numeric" id="cartaoFecha" placeholder="ex: 28"
+                       oninput="editarCartao('fechamento', this.value)">
+              </div>
+            </div>
+            <div class="mil-field">
+              <div class="mil-lbl">Vence no dia</div>
+              <div class="mil-box">
+                <input type="text" inputmode="numeric" id="cartaoVence" placeholder="ex: 5"
+                       oninput="editarCartao('vencimento', this.value)">
+              </div>
+            </div>
+          </div>
+          <div class="ajuda-aviso" style="margin-top:12px">Não lance o pagamento da fatura como gasto. Os gastos já entraram no dia em que aconteceram; lançar a fatura contaria tudo duas vezes.</div>
         </div>
 
         <div class="card">
@@ -1710,6 +1754,15 @@ const CATEGORIAS_ENTRADA = [
   {id:'outra',      em:'✦', label:'Outra'}
 ];
 let tipoLanc = 'gasto';
+let selectedForma = 'credito';
+function setForma(f){ selectedForma = f; buildFormaGrid(); }
+function buildFormaGrid(){
+  const grid = document.getElementById('formaGrid');
+  if(!grid) return;
+  grid.innerHTML = FORMAS.map(f=>
+    `<button class="forma-chip${f.id===selectedForma?' sel':''}" onclick="setForma('${f.id}')">
+       <span class="em">${f.em}</span>${f.label}</button>`).join('');
+}
 function catsDoTipo(){ return tipoLanc === 'entrada' ? CATEGORIAS_ENTRADA : CATEGORIES; }
 function acharCategoria(id, tipo){
   const lista = tipo === 'entrada' ? CATEGORIAS_ENTRADA : CATEGORIES;
@@ -1749,7 +1802,8 @@ const PLANO_PADRAO = {
     {nome:'Investir', pct:15},
     {nome:'Lazer / viagem', pct:15}
   ],
-  contatos: []
+  contatos: [],
+  cartao: { fechamento: 0, vencimento: 0 }
 };
 let plano = JSON.parse(JSON.stringify(PLANO_PADRAO));
 let planoSujo = false;   // há edições ainda não salvas?
@@ -1789,6 +1843,7 @@ function monthLabel(d){
 /* ---------- boot ---------- */
 async function boot(){
   buildCatGrid();
+  buildFormaGrid();
   buildQuemToggle();
   document.getElementById('fData').valueAsDate = new Date();
   document.getElementById('milData').valueAsDate = new Date();
@@ -1831,6 +1886,9 @@ function setTipoLanc(t){
   document.getElementById('fDesc').placeholder = t==='entrada'
     ? 'ex: salário de agosto, venda no site' : 'ex: feira, hidratante, uber';
   selectedCat = catsDoTipo()[0].id;
+  const ehGasto = t !== 'entrada';
+  document.getElementById('formaLabel').classList.toggle('hidden', !ehGasto);
+  document.getElementById('formaGrid').classList.toggle('hidden', !ehGasto);
   buildCatGrid();
 }
 
@@ -1867,6 +1925,7 @@ function assinarLancamentos(){
           categoria: v.categoria || 'outros',
           quem: v.quem || pessoas()[0],
           tipo: v.tipo === 'entrada' ? 'entrada' : 'gasto',
+          forma: v.forma || '',
           desc: v.desc || '',
           data: v.data || ''
         };
@@ -1920,7 +1979,11 @@ function normalizarPlano(p){
     })) : base.destino,
     contatos: Array.isArray(p.contatos) ? p.contatos.map(c=>({
       nome: String(c && c.nome || ''), telefone: String(c && c.telefone || '')
-    })) : base.contatos
+    })) : base.contatos,
+    cartao: {
+      fechamento: Number(p.cartao && p.cartao.fechamento) || 0,
+      vencimento: Number(p.cartao && p.cartao.vencimento) || 0
+    }
   };
 }
 
@@ -1989,6 +2052,8 @@ function renderPlano(){
   document.getElementById('retroValor').value  = numParaInput(plano.retroativo.estimativaPorMes);
   document.getElementById('retroStatus').value = plano.retroativo.status;
   document.getElementById('planoObs').value    = plano.observacao;
+  document.getElementById('cartaoFecha').value = plano.cartao.fechamento || '';
+  document.getElementById('cartaoVence').value = plano.cartao.vencimento || '';
   document.getElementById('contaEmail').textContent =
     usuarioAtual ? 'Conectado como ' + usuarioAtual.email : '';
   if(contaAtual){
@@ -2094,6 +2159,12 @@ function editarRetro(campo, valor){
   renderDestino();
 }
 function editarObs(v){ plano.observacao = v; marcarSujo(); }
+function editarCartao(campo, valor){
+  const n = Math.round(parseValor(valor) || 0);
+  plano.cartao[campo] = (n >= 1 && n <= 31) ? n : 0;
+  marcarSujo();
+  renderPainel();
+}
 function editarContato(i, campo, valor){
   const c = plano.contatos[i];
   if(!c) return;
@@ -2185,6 +2256,7 @@ async function salvarLancamento(){
   const entry = {
     valor, categoria: selectedCat, quem: selectedWho,
     tipo: tipoLanc,
+    forma: selectedForma,
     desc: desc || catInfo.label,
     data: dataStr,
     criadoEm: new Date().toISOString()
@@ -2898,6 +2970,98 @@ function assinarInvestimentos(){
       if(primeira){ primeira = false; resolve(); }
     });
   });
+}
+
+/* ---------- forma de pagamento e fatura do cartao ----------
+   Categoria diz NO QUE se gastou; forma de pagamento diz COMO se pagou.
+   Sao coisas diferentes e precisam de campos diferentes.
+
+   Regra que evita contar em dobro: a fatura do cartao NAO e um gasto novo.
+   Ela e a soma de gastos que ja foram lancados no dia em que aconteceram.
+   Quem lanca os dois conta tudo duas vezes. */
+
+const FORMAS = [
+  {id:'credito',  em:'💳', label:'Crédito'},
+  {id:'debito',   em:'🏦', label:'Débito'},
+  {id:'pix',      em:'⚡', label:'Pix'},
+  {id:'dinheiro', em:'💵', label:'Dinheiro'}
+];
+function acharForma(id){
+  return FORMAS.find(f=>f.id === id) || FORMAS[0];
+}
+/* Lancamento antigo, de antes deste campo, entra como credito: e assim que
+   o casal paga tudo. Vale rever no Extrato se algum foi de outro jeito. */
+function formaDe(e){
+  return (e && e.forma) ? e.forma : 'credito';
+}
+function noCredito(e){ return formaDe(e) === 'credito'; }
+
+/* ---- fatura ----
+   Uma compra entra na fatura que fecha depois dela. Com fechamento no dia 28,
+   a compra do dia 5 cai na fatura que fecha dia 28 deste mes; a do dia 29 ja
+   cai na do mes seguinte. */
+
+function diaFechamento(){
+  const d = Number(plano.cartao && plano.cartao.fechamento) || 0;
+  return (d >= 1 && d <= 31) ? d : 0;
+}
+function diaVencimento(){
+  const d = Number(plano.cartao && plano.cartao.vencimento) || 0;
+  return (d >= 1 && d <= 31) ? d : 0;
+}
+
+/* Data em que fecha a fatura que engloba esta compra. */
+function fechamentoDaCompra(dataISO_, fecha){
+  if(!fecha) return '';
+  const d = new Date(dataISO_+'T00:00:00');
+  if(isNaN(d)) return '';
+  const dia = d.getDate();
+  const alvo = new Date(d.getFullYear(), d.getMonth(), 1);
+  if(dia > fecha) alvo.setMonth(alvo.getMonth() + 1);
+  /* mes curto: fechamento no dia 31 vira o ultimo dia do mes */
+  const ultimo = new Date(alvo.getFullYear(), alvo.getMonth()+1, 0).getDate();
+  alvo.setDate(Math.min(fecha, ultimo));
+  return dataISO(alvo);
+}
+
+/* Vencimento correspondente a um fechamento. Se o dia de vencimento e menor
+   ou igual ao de fechamento, ele cai no mes seguinte. */
+function vencimentoDoFechamento(fechISO){
+  const vence = diaVencimento();
+  if(!fechISO || !vence) return '';
+  const f = new Date(fechISO+'T00:00:00');
+  const alvo = new Date(f.getFullYear(), f.getMonth(), 1);
+  if(vence <= f.getDate()) alvo.setMonth(alvo.getMonth() + 1);
+  const ultimo = new Date(alvo.getFullYear(), alvo.getMonth()+1, 0).getDate();
+  alvo.setDate(Math.min(vence, ultimo));
+  return dataISO(alvo);
+}
+
+/* A fatura ainda aberta: tudo no credito cujo fechamento ainda nao passou. */
+function faturaAberta(){
+  const fecha = diaFechamento();
+  if(!fecha) return null;
+  const hoje = hojeISO();
+  const fechaAtual = fechamentoDaCompra(hoje, fecha);
+  const compras = entries.filter(e=>
+    !ehEntrada(e) && noCredito(e) && e.data &&
+    fechamentoDaCompra(e.data, fecha) === fechaAtual
+  );
+  return {
+    fechamento: fechaAtual,
+    vencimento: vencimentoDoFechamento(fechaAtual),
+    total: compras.reduce((s,e)=>s + e.valor, 0),
+    quantidade: compras.length
+  };
+}
+
+/* Quanto foi por cada forma, no mes que o painel esta mostrando. */
+function gastosPorForma(cursor){
+  const lista = gastosDoMes(cursor);
+  const mapa = {};
+  FORMAS.forEach(f=>mapa[f.id] = 0);
+  lista.forEach(e=>{ mapa[formaDe(e)] = (mapa[formaDe(e)] || 0) + e.valor; });
+  return FORMAS.map(f=>({ forma:f, valor: mapa[f.id] })).filter(x=>x.valor > 0);
 }
 
 /* ---------- numeros que atravessam as abas ---------- */
@@ -4077,6 +4241,24 @@ const AJUDA = [
     ]
   },
   {
+    id: 'cartao',
+    icone: '💳',
+    titulo: 'Cartão de crédito',
+    resumo: 'Acompanhar a fatura sem contar em dobro',
+    blocos: [
+      {tipo:'texto', html:'Ao lançar um gasto você escolhe <b>como pagou</b>: crédito, débito, pix ou dinheiro. Isso é diferente da categoria, que diz <b>no que</b> você gastou. Uma compra no mercado no crédito é categoria Mercado e forma Crédito.'},
+      {tipo:'passos', itens:[
+        'Em <b>Plano</b>, no cartão <b>Cartão de crédito</b>, informe o dia em que a fatura fecha e o dia em que vence.',
+        'Salve o plano.',
+        'Lance os gastos normalmente, escolhendo <b>Crédito</b> em como pagou.',
+        'No <b>Painel</b>, o bloco do cartão mostra a fatura em aberto e quanto ela já soma.'
+      ]},
+      {tipo:'aviso', texto:'Não lance o pagamento da fatura como gasto. Os gastos já foram registrados no dia em que aconteceram; lançar a fatura por cima contaria tudo duas vezes e o mês pareceria o dobro do que foi.'},
+      {tipo:'dica', texto:'Uma compra feita depois do fechamento já entra na fatura seguinte. Por isso o total do mês e o total da fatura quase nunca são iguais, e os dois estão certos: um é o que vocês gastaram, o outro é o que vai chegar para pagar.'},
+      {tipo:'texto', html:'Lançamentos feitos antes deste campo existir aparecem como <b>Crédito</b>, que é como vocês pagam quase tudo. Se algum foi de outro jeito, apague e lance de novo pelo Extrato.'}
+    ]
+  },
+  {
     id: 'notafiscal',
     icone: '📷',
     titulo: 'Lançar lendo a nota fiscal',
@@ -4444,7 +4626,7 @@ function renderExtrato(){
       <div class="led-cat">${cat.em}</div>
       <div class="led-mid">
         <div class="led-desc">${escapeHtml(e.desc)}</div>
-        <div class="led-meta">${d}/${m} · ${e.quem} · ${entrada ? 'entrada' : cat.label}</div>
+        <div class="led-meta">${d}/${m} · ${e.quem} · ${entrada ? 'entrada' : cat.label + ' · ' + acharForma(formaDe(e)).em + ' ' + acharForma(formaDe(e)).label}</div>
       </div>
       <div class="led-val${entrada ? ' entrada' : ''}">${entrada ? '+' : '−'} ${fmt(e.valor)}</div>
       <button class="led-del" onclick="excluirLancamento('${e.id}')">✕</button>
@@ -4461,6 +4643,43 @@ function mudarMesResumo(delta){
   renderResumo();
 }
 function renderResumo(){ renderPainel(); }
+
+function renderCartao(){
+  const alvo = document.getElementById('resCartao');
+  if(!alvo) return;
+  const porForma = gastosPorForma(resumoCursor);
+  const totalMes = porForma.reduce((s,x)=>s + x.valor, 0);
+
+  let html = '';
+  if(porForma.length){
+    html += '<div class="section-label" style="margin:0 0 8px">Como foi pago</div>';
+    html += porForma.sort((a,b)=>b.valor-a.valor).map(x=>{
+      const pct = totalMes > 0 ? Math.round((x.valor/totalMes)*100) : 0;
+      return `<div class="bar-row">
+        <div class="bar-top"><span class="cat-name">${x.forma.em} ${x.forma.label}</span>
+          <span class="cat-val">${fmt(x.valor)} <span class="cat-pct">${pct}%</span></span></div>
+        <div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div>
+      </div>`;
+    }).join('');
+  } else {
+    html += '<div class="empty-state">Nenhum gasto neste mês.</div>';
+  }
+
+  const f = faturaAberta();
+  if(f){
+    const dm = iso => iso ? iso.split('-').reverse().slice(0,2).join('/') : '—';
+    html += `<div class="derived" style="margin-top:14px">
+      <div class="derived-row"><span class="d-lbl">Fatura em aberto</span>
+        <span class="d-val">${f.quantidade} compra${f.quantidade===1?'':'s'}</span></div>
+      <div class="derived-row"><span class="d-lbl">Fecha em ${dm(f.fechamento)}, vence em ${dm(f.vencimento)}</span>
+        <span class="d-val bal-bad">${fmt(f.total)}</span></div>
+    </div>
+    <div class="budget-note">Este é o valor que vai chegar na fatura, somando o que já foi lançado no crédito. Não lance o pagamento dela: contaria duas vezes.</div>`;
+  } else {
+    html += `<div class="budget-note" style="margin-top:14px">Informe o dia de fechamento e de vencimento do cartão na aba Plano para acompanhar a fatura em aberto.</div>`;
+  }
+  alvo.innerHTML = html;
+}
 
 function renderPainel(){
   if(!document.getElementById('resSaldo')) return;
@@ -4530,6 +4749,9 @@ function renderPainel(){
       </div>`;
     }).join('');
   }
+
+  /* Como foi pago e a fatura em aberto */
+  renderCartao();
 
   /* O que vocês têm */
   const pat = patrimonio();
