@@ -766,21 +766,21 @@
     <div class="tut-secao">
       <div class="tut-titulo">Quanto entra por mês</div>
       <label id="tutLabel1">Pessoa 1</label>
-      <div class="valor-row"><span>R$</span><input type="text" id="tutRenda1" inputmode="decimal" placeholder="0,00"></div>
+      <div class="valor-row"><span class="simbolo-moeda">R$</span><input type="text" id="tutRenda1" inputmode="decimal" placeholder="0,00"></div>
       <label id="tutLabel2">Pessoa 2</label>
-      <div class="valor-row"><span>R$</span><input type="text" id="tutRenda2" inputmode="decimal" placeholder="0,00"></div>
+      <div class="valor-row"><span class="simbolo-moeda">R$</span><input type="text" id="tutRenda2" inputmode="decimal" placeholder="0,00"></div>
       <label>Outra renda (opcional)</label>
-      <div class="valor-row"><span>R$</span><input type="text" id="tutRenda3" inputmode="decimal" placeholder="0,00"></div>
+      <div class="valor-row"><span class="simbolo-moeda">R$</span><input type="text" id="tutRenda3" inputmode="decimal" placeholder="0,00"></div>
     </div>
 
     <div class="tut-secao">
       <div class="tut-titulo">Contas que chegam todo mês</div>
       <label>Aluguel ou financiamento</label>
-      <div class="valor-row"><span>R$</span><input type="text" id="tutFixo1" inputmode="decimal" placeholder="0,00"></div>
+      <div class="valor-row"><span class="simbolo-moeda">R$</span><input type="text" id="tutFixo1" inputmode="decimal" placeholder="0,00"></div>
       <label>Luz, água e internet, somados</label>
-      <div class="valor-row"><span>R$</span><input type="text" id="tutFixo2" inputmode="decimal" placeholder="0,00"></div>
+      <div class="valor-row"><span class="simbolo-moeda">R$</span><input type="text" id="tutFixo2" inputmode="decimal" placeholder="0,00"></div>
       <label>Mercado no mês</label>
-      <div class="valor-row"><span>R$</span><input type="text" id="tutFixo3" inputmode="decimal" placeholder="0,00"></div>
+      <div class="valor-row"><span class="simbolo-moeda">R$</span><input type="text" id="tutFixo3" inputmode="decimal" placeholder="0,00"></div>
     </div>
 
     <div class="derived" id="tutPrevia" style="margin-top:16px"></div>
@@ -817,7 +817,7 @@
 
           <label>Valor</label>
           <div class="valor-row">
-            <span>R$</span>
+            <span class="simbolo-moeda">R$</span>
             <input type="text" id="fValor" placeholder="0,00" inputmode="decimal" autocomplete="off">
           </div>
 
@@ -952,7 +952,7 @@
           <input type="text" id="retroMeses" oninput="editarRetro('meses', this.value)">
           <label>Estimativa por mês</label>
           <div class="plan-val" style="max-width:none">
-            <span>R$</span>
+            <span class="simbolo-moeda">R$</span>
             <input type="text" inputmode="decimal" id="retroValor" oninput="editarRetro('estimativaPorMes', this.value)">
           </div>
           <label>Situação</label>
@@ -970,6 +970,12 @@
           <div id="planoDestino"></div>
           <div class="plan-warn hidden" id="destinoWarn"></div>
           <button class="plan-add" onclick="adicionarItem('destino')">+ adicionar destino</button>
+        </div>
+
+        <div class="card">
+          <div class="section-label">Moeda</div>
+          <div class="plan-hint">Vale para o app inteiro: telas, resumo do WhatsApp e o jeito de digitar os valores.</div>
+          <div class="who-toggle" id="moedaToggle"></div>
         </div>
 
         <div class="card">
@@ -1070,7 +1076,7 @@
 
           <label id="milMilheiroLabel">Valor do milheiro na venda</label>
           <div class="valor-row">
-            <span>R$</span>
+            <span class="simbolo-moeda">R$</span>
             <input type="text" id="milMilheiro" inputmode="decimal" placeholder="0,00" oninput="previewMilhas()">
           </div>
 
@@ -1817,7 +1823,8 @@ const PLANO_PADRAO = {
     {nome:'Lazer / viagem', pct:15}
   ],
   contatos: [],
-  cartao: { fechamento: 0, vencimento: 0 }
+  cartao: { fechamento: 0, vencimento: 0 },
+  moeda: 'BRL'
 };
 let plano = JSON.parse(JSON.stringify(PLANO_PADRAO));
 let planoSujo = false;   // há edições ainda não salvas?
@@ -1830,25 +1837,58 @@ function inicioDoMes(d){ return new Date(d.getFullYear(), d.getMonth(), 1); }
 let extratoCursor = inicioDoMes(new Date());
 let resumoCursor = inicioDoMes(new Date());
 
+/* ---------- moeda do espaco ----------
+   Cada casal escolhe em que moeda vive. Vale para tudo: telas, resumo do
+   WhatsApp e a leitura do que se digita. */
+
+const MOEDAS = [
+  {id:'BRL', simbolo:'R$', label:'Real',  locale:'pt-BR', decimal:','},
+  {id:'USD', simbolo:'$',  label:'Dólar', locale:'en-US', decimal:'.'},
+  {id:'EUR', simbolo:'€',  label:'Euro',  locale:'pt-PT', decimal:','}
+];
+function moedaAtual(){
+  const id = (plano && plano.moeda) || 'BRL';
+  return MOEDAS.find(m=>m.id === id) || MOEDAS[0];
+}
+function simboloMoeda(){ return moedaAtual().simbolo; }
+
 function fmt(v){
-  return v.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+  const m = moedaAtual();
+  const n = Number(v) || 0;
+  return n.toLocaleString(m.locale, {style:'currency', currency:m.id});
 }
 
-/* Aceita o jeito brasileiro de digitar: "12,50", "1.234,56" e também "12.50". */
+/* Le o que a pessoa digitou, sem depender de como ela escreve.
+   Regra que serve para qualquer moeda: quando aparecem ponto e virgula, o
+   ULTIMO deles e o decimal — 1.234,56 e 1,234.56 dao o mesmo numero.
+   Com so um separador, quem decide e a moeda do espaco. */
 function parseValor(raw){
-  let s = String(raw || '').replace(/[R$\s]/g,'').trim();
+  let s = String(raw || '').replace(/[R$€\s]/g,'').trim();
   if(!s) return NaN;
-  const temVirgula = s.includes(',');
-  const temPonto = s.includes('.');
-  if(temVirgula && temPonto){
-    s = s.replace(/\./g,'').replace(',', '.');   // 1.234,56
-  } else if(temVirgula){
-    s = s.replace(',', '.');                      // 12,50
-  } else if(temPonto && /\.\d{3}$/.test(s)){
-    s = s.replace(/\./g,'');                      // 1.234 = mil duzentos e trinta e quatro
+  const ultimaVirgula = s.lastIndexOf(',');
+  const ultimoPonto   = s.lastIndexOf('.');
+
+  if(ultimaVirgula >= 0 && ultimoPonto >= 0){
+    const decimal = ultimaVirgula > ultimoPonto ? ',' : '.';
+    const milhar  = decimal === ',' ? '.' : ',';
+    s = s.split(milhar).join('').replace(decimal, '.');
+  } else if(ultimaVirgula >= 0 || ultimoPonto >= 0){
+    const sep = ultimaVirgula >= 0 ? ',' : '.';
+    const depois = s.length - s.lastIndexOf(sep) - 1;
+    /* Tres casas depois do separador so pode ser milhar: dinheiro nao tem
+       tres decimais em moeda nenhuma. Com uma ou duas, e o decimal. */
+    if(depois === 3) s = s.split(sep).join('');
+    else s = s.replace(sep, '.');
   }
   return parseFloat(s);
 }
+
+/* Troca o simbolo que aparece colado nos campos de valor. */
+function aplicarSimboloNosCampos(){
+  const simbolo = simboloMoeda();
+  document.querySelectorAll('.simbolo-moeda').forEach(el=>{ el.textContent = simbolo; });
+}
+
 function monthKey(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
 function monthLabel(d){
   return d.toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
@@ -1859,6 +1899,7 @@ async function boot(){
   buildCatGrid();
   buildFormaGrid();
   buildQuemToggle();
+  aplicarSimboloNosCampos();
   document.getElementById('fData').valueAsDate = new Date();
   document.getElementById('milData').valueAsDate = new Date();
   setMilTipo('venda');
@@ -1997,7 +2038,8 @@ function normalizarPlano(p){
     cartao: {
       fechamento: Number(p.cartao && p.cartao.fechamento) || 0,
       vencimento: Number(p.cartao && p.cartao.vencimento) || 0
-    }
+    },
+    moeda: ['BRL','USD','EUR'].indexOf(p.moeda) >= 0 ? p.moeda : 'BRL'
   };
 }
 
@@ -2033,7 +2075,7 @@ function renderPlano(){
           ? `<label class="plan-chk"><input type="checkbox" ${it.ativo?'checked':''}
                onchange="editarPlano('${secao}',${i},'ativo',this.checked)"> entra na conta</label>`
           : '<span></span>'}
-        <div class="plan-val"><span>R$</span>
+        <div class="plan-val"><span class="simbolo-moeda">${simboloMoeda()}</span>
           <input type="text" inputmode="decimal" value="${escapeHtml(numParaInput(it.valor))}"
                  oninput="editarPlano('${secao}',${i},'valor',this.value)">
         </div>
@@ -2066,6 +2108,8 @@ function renderPlano(){
   document.getElementById('retroValor').value  = numParaInput(plano.retroativo.estimativaPorMes);
   document.getElementById('retroStatus').value = plano.retroativo.status;
   document.getElementById('planoObs').value    = plano.observacao;
+  buildMoedaToggle();
+  aplicarSimboloNosCampos();
   document.getElementById('cartaoFecha').value = plano.cartao.fechamento || '';
   document.getElementById('cartaoVence').value = plano.cartao.vencimento || '';
   document.getElementById('contaEmail').textContent =
@@ -2080,6 +2124,7 @@ function renderPlano(){
 
   renderDestino();
   renderDerivados();
+  aplicarSimboloNosCampos();
 }
 
 function renderDestino(){
@@ -2173,6 +2218,24 @@ function editarRetro(campo, valor){
   renderDestino();
 }
 function editarObs(v){ plano.observacao = v; marcarSujo(); }
+
+function buildMoedaToggle(){
+  const alvo = document.getElementById('moedaToggle');
+  if(!alvo) return;
+  const atual = moedaAtual().id;
+  alvo.innerHTML = MOEDAS.map(m=>
+    `<button class="who-btn${m.id===atual?' sel':''}" onclick="setMoeda('${m.id}')">${m.simbolo} ${m.label}</button>`
+  ).join('');
+}
+function setMoeda(id){
+  plano.moeda = id;
+  marcarSujo();
+  buildMoedaToggle();
+  /* tudo que mostra dinheiro precisa ser redesenhado na moeda nova */
+  renderPainel(); renderPlano(); renderMilhas(); renderInvestimentos(); renderSonhos();
+  /* por ultimo: os campos fixos do HTML, que nenhum render recria */
+  aplicarSimboloNosCampos();
+}
 function editarCartao(campo, valor){
   const n = Math.round(parseValor(valor) || 0);
   plano.cartao[campo] = (n >= 1 && n <= 31) ? n : 0;
@@ -2444,7 +2507,7 @@ function renderMilhas(){
         </div>
         <div class="mil-field">
           <div class="mil-lbl">Milheiro</div>
-          <div class="mil-box"><span>R$</span>
+          <div class="mil-box"><span class="simbolo-moeda">${simboloMoeda()}</span>
             <input type="text" inputmode="decimal" value="${escapeHtml((Number(p.milheiro)||0).toFixed(2).replace('.',','))}"
                    oninput="editarPrograma(${i},'milheiro',this.value)">
           </div>
@@ -2840,7 +2903,7 @@ function renderInvestimentos(){
       <div class="mil-grid">
         <div class="mil-field">
           <div class="mil-lbl">Valor aplicado</div>
-          <div class="mil-box"><span>R$</span>
+          <div class="mil-box"><span class="simbolo-moeda">${simboloMoeda()}</span>
             <input type="text" inputmode="decimal" value="${escapeHtml(numParaInput(a.valor))}"
                    oninput="editarAplicacao(${i},'valor',this.value)">
           </div>
@@ -3617,6 +3680,7 @@ function renderSonhos(){
     </div>`;
 
   renderItensSonho();
+  aplicarSimboloNosCampos();
 }
 
 function renderItensSonho(){
@@ -3662,13 +3726,13 @@ function renderItensSonho(){
       <div class="mil-grid">
         <div class="mil-field">
           <div class="mil-lbl">Custo</div>
-          <div class="mil-box"><span>R$</span>
+          <div class="mil-box"><span class="simbolo-moeda">${simboloMoeda()}</span>
             <input type="text" inputmode="decimal" value="${escapeHtml(numParaInput(i.valor))}" oninput="editarItemSonho(${k},'valor',this.value)">
           </div>
         </div>
         <div class="mil-field">
           <div class="mil-lbl">Já pago</div>
-          <div class="mil-box"><span>R$</span>
+          <div class="mil-box"><span class="simbolo-moeda">${simboloMoeda()}</span>
             <input type="text" inputmode="decimal" value="${escapeHtml(numParaInput(i.pago))}" oninput="editarItemSonho(${k},'pago',this.value)">
           </div>
         </div>
@@ -4076,7 +4140,7 @@ function mostrarTotalLido(achado, texto){
   alvo.innerHTML = `
     <div class="ajuda-dica" style="margin:0 0 10px">Confira antes de usar. A leitura por foto às vezes troca um dígito.</div>
     <label style="margin-top:0">Valor lido na nota</label>
-    <div class="valor-row"><span>R$</span>
+    <div class="valor-row"><span class="simbolo-moeda">${simboloMoeda()}</span>
       <input type="text" id="totalLido" inputmode="decimal" value="${achado.valor.toFixed(2).replace('.', ',')}">
     </div>
     <div class="plan-hint" style="margin:6px 0 12px">encontrado em: "${escapeHtml(achado.linha)}"</div>
@@ -4427,6 +4491,23 @@ const AJUDA = [
       ]},
       {tipo:'dica', texto:'O texto traz o que entrou, o que saiu, o que sobrou, de onde veio, para onde foi e o patrimônio. No último dia do mês o app lembra de enviar.'},
       {tipo:'texto', html:'A mensagem nunca sai sozinha: o WhatsApp sempre espera você apertar enviar.'}
+    ]
+  },
+  {
+    id: 'moeda',
+    icone: '💱',
+    titulo: 'Moeda do espaço',
+    resumo: 'Usar o app em real, dólar ou euro',
+    blocos: [
+      {tipo:'texto', html:'O app funciona em <b>real</b>, <b>dólar</b> ou <b>euro</b>. A escolha vale para tudo: as telas, o resumo enviado pelo WhatsApp e o jeito de digitar os valores.'},
+      {tipo:'passos', itens:[
+        'Vá em <b>Plano</b>, no cartão <b>Moeda</b>.',
+        'Toque na moeda que vocês usam.',
+        'Toque em <b>Salvar plano</b>.'
+      ]},
+      {tipo:'dica', texto:'Cada moeda tem seu jeito de escrever, e o app entende os dois. Em dólar, 1,234.56 é mil duzentos e trinta e quatro. Em real e euro, 1.234,56 é o mesmo valor. Se você digitar do outro jeito, ele também entende: o último ponto ou vírgula é sempre tratado como o decimal.'},
+      {tipo:'aviso', texto:'Trocar a moeda não converte os valores. Os números continuam iguais, só passam a ser mostrados na outra moeda. Escolha a moeda antes de começar a lançar.'},
+      {tipo:'texto', html:'A aba <b>Investir</b> calcula CDB pelo CDI, que é um índice brasileiro. Em dólar ou euro ela continua somando, mas o cálculo do rendimento e do imposto não se aplica fora do Brasil.'}
     ]
   },
   {
