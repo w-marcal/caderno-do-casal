@@ -4,6 +4,17 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Conta a Dois</title>
+
+<!-- Instalar na tela de inicio, sem loja de aplicativos.
+     O iPhone ignora o manifesto e usa as marcacoes apple-* abaixo. -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1F3A3D">
+<link rel="apple-touch-icon" href="icone-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Conta a Dois">
+<meta name="description" content="As contas do casal num lugar só.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <!-- Adianta DNS e conexao dos servidores do Firebase: quando o app precisa
@@ -34,12 +45,13 @@
     margin:0; background:var(--paper); color:var(--ink);
     font-family:'Inter',sans-serif;
     min-height:100vh;
-    padding-bottom:84px;
+    padding-bottom:calc(84px + env(safe-area-inset-bottom));
   }
   .wrap{max-width:480px; margin:0 auto; padding:0 16px;}
 
   /* ---- header / passbook cover ---- */
   header.cover{
+    padding-top:calc(28px + env(safe-area-inset-top));
     background:var(--ink);
     color:var(--paper-card);
     padding:28px 20px 22px;
@@ -93,6 +105,7 @@
   /* ---- tabs / nav ---- */
   nav.tabbar{
     position:fixed; bottom:0; left:0; right:0; background:var(--paper-card);
+    padding-bottom:env(safe-area-inset-bottom);
     border-top:1px solid var(--line); display:flex; z-index:20;
     box-shadow:0 -2px 8px rgba(0,0,0,.05);
   }
@@ -678,7 +691,8 @@
   }
 
   /* ---- forma de pagamento ---- */
-  .forma-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-top:2px;}
+  .forma-grid{display:flex; flex-wrap:wrap; gap:8px; margin-top:2px;}
+  .forma-chip{flex:1 1 28%; min-width:72px;}
   .forma-chip{
     padding:9px 2px; border-radius:9px; border:1.5px solid var(--line); background:#fff;
     font-size:11px; text-align:center; color:var(--ink-soft); font-weight:600; line-height:1.2;
@@ -2981,13 +2995,21 @@ function assinarInvestimentos(){
    Quem lanca os dois conta tudo duas vezes. */
 
 const FORMAS = [
-  {id:'credito',  em:'💳', label:'Crédito'},
-  {id:'debito',   em:'🏦', label:'Débito'},
-  {id:'pix',      em:'⚡', label:'Pix'},
-  {id:'dinheiro', em:'💵', label:'Dinheiro'}
+  {id:'credito',    em:'💳', label:'Crédito'},
+  {id:'alimentacao',em:'🛒', label:'Alimentação'},
+  {id:'refeicao',   em:'🍽️', label:'Refeição'},
+  {id:'pix',        em:'⚡', label:'Pix'},
+  {id:'dinheiro',   em:'💵', label:'Dinheiro'}
+];
+/* Formas que sairam da lista mas ainda existem em lancamentos antigos.
+   Continuam sendo exibidas corretamente; so nao sao mais oferecidas. */
+const FORMAS_ANTIGAS = [
+  {id:'debito', em:'🏦', label:'Débito'}
 ];
 function acharForma(id){
-  return FORMAS.find(f=>f.id === id) || FORMAS[0];
+  return FORMAS.find(f=>f.id === id)
+      || FORMAS_ANTIGAS.find(f=>f.id === id)
+      || FORMAS[0];
 }
 /* Lancamento antigo, de antes deste campo, entra como credito: e assim que
    o casal paga tudo. Vale rever no Extrato se algum foi de outro jeito. */
@@ -3059,9 +3081,11 @@ function faturaAberta(){
 function gastosPorForma(cursor){
   const lista = gastosDoMes(cursor);
   const mapa = {};
-  FORMAS.forEach(f=>mapa[f.id] = 0);
   lista.forEach(e=>{ mapa[formaDe(e)] = (mapa[formaDe(e)] || 0) + e.valor; });
-  return FORMAS.map(f=>({ forma:f, valor: mapa[f.id] })).filter(x=>x.valor > 0);
+  /* inclui as formas antigas, para gasto nenhum sumir do painel */
+  return FORMAS.concat(FORMAS_ANTIGAS)
+    .map(f=>({ forma:f, valor: mapa[f.id] || 0 }))
+    .filter(x=>x.valor > 0);
 }
 
 /* ---------- numeros que atravessam as abas ---------- */
@@ -4246,7 +4270,8 @@ const AJUDA = [
     titulo: 'Cartão de crédito',
     resumo: 'Acompanhar a fatura sem contar em dobro',
     blocos: [
-      {tipo:'texto', html:'Ao lançar um gasto você escolhe <b>como pagou</b>: crédito, débito, pix ou dinheiro. Isso é diferente da categoria, que diz <b>no que</b> você gastou. Uma compra no mercado no crédito é categoria Mercado e forma Crédito.'},
+      {tipo:'texto', html:'Ao lançar um gasto você escolhe <b>como pagou</b>: crédito, alimentação, refeição, pix ou dinheiro. Isso é diferente da categoria, que diz <b>no que</b> você gastou. Uma compra no mercado paga com o vale é categoria Mercado e forma Alimentação.'},
+      {tipo:'dica', texto:'Alimentação e Refeição são os cartões de benefício. Separá-los mostra quanto do mês saiu do vale e quanto saiu do seu bolso — o Painel divide os dois no bloco "Como foi pago".'},
       {tipo:'passos', itens:[
         'Em <b>Plano</b>, no cartão <b>Cartão de crédito</b>, informe o dia em que a fatura fecha e o dia em que vence.',
         'Salve o plano.',
@@ -4402,6 +4427,24 @@ const AJUDA = [
       ]},
       {tipo:'dica', texto:'O texto traz o que entrou, o que saiu, o que sobrou, de onde veio, para onde foi e o patrimônio. No último dia do mês o app lembra de enviar.'},
       {tipo:'texto', html:'A mensagem nunca sai sozinha: o WhatsApp sempre espera você apertar enviar.'}
+    ]
+  },
+  {
+    id: 'instalar',
+    icone: '📱',
+    titulo: 'Deixar como app no celular',
+    resumo: 'Ícone na tela de início, sem loja',
+    blocos: [
+      {tipo:'texto', html:'Não precisa baixar nada de loja nenhuma e não custa nada. O site vira um ícone na tela de início e abre em tela cheia, sem as barras do navegador.'},
+      {tipo:'passos', itens:[
+        '<b>No iPhone:</b> abra o app no <b>Safari</b> (precisa ser o Safari).',
+        'Toque no botão de compartilhar, o quadrado com a seta para cima.',
+        'Desça e toque em <b>Adicionar à Tela de Início</b>.',
+        'Confirme. O ícone aparece junto com os outros aplicativos.',
+        '<b>No Android:</b> abra no Chrome, toque nos três pontinhos e em <b>Instalar aplicativo</b>.'
+      ]},
+      {tipo:'aviso', texto:'No iPhone, o app instalado guarda o login separado do Safari. Vai pedir para entrar uma vez, e depois fica conectado.'},
+      {tipo:'dica', texto:'Vale instalar nos dois celulares. Cada um entra com a própria conta e vê os mesmos lançamentos.'}
     ]
   },
   {
